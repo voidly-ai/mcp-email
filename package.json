@@ -1,6 +1,6 @@
 {
   "name": "@voidly/mcp-email",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "MCP server for agent email — create @voidmail.ai inboxes, send/receive, search, manage aliases. No phone, no CAPTCHA, just an API key.",
   "type": "module",
   "main": "dist/index.js",
@@ -29,11 +29,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/EmperorMew/aegisvpn"
+    "url": "https://github.com/voidly-ai/mcp-email"
   },
   "homepage": "https://voidly.ai/agent-email",
   "bugs": {
-    "url": "https://github.com/EmperorMew/aegisvpn/issues"
+    "url": "https://github.com/voidly-ai/mcp-email/issues"
   },
   "files": [
     "dist",
