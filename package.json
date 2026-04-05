@@ -1,0 +1,50 @@
+{
+  "name": "@voidly/mcp-email",
+  "version": "1.0.0",
+  "description": "MCP server for agent email — create @voidmail.ai inboxes, send/receive, search, manage aliases. No phone, no CAPTCHA, just an API key.",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "voidly-mcp-email": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "mcp",
+    "email",
+    "agent",
+    "ai",
+    "inbox",
+    "encrypted",
+    "voidmail",
+    "claude",
+    "llm",
+    "tool",
+    "messaging"
+  ],
+  "author": "Ai Analytics LLC",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/EmperorMew/aegisvpn"
+  },
+  "homepage": "https://voidly.ai/agent-email",
+  "bugs": {
+    "url": "https://github.com/EmperorMew/aegisvpn/issues"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}
