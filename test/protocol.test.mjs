@@ -21,7 +21,7 @@ async function fixture(t, fetcher, apiKey = syntheticKey) {
 
 test('protocol inventories 19 tools and 3 resources with truthful side-effect hints', async t => {
   const client = await fixture(t, () => { throw new Error('No network expected'); });
-  assert.equal(client.getServerVersion().version, '1.2.0');
+  assert.equal(client.getServerVersion().version, '1.2.1');
   const { tools } = await client.listTools(); assert.equal(tools.length, 19);
   const byName = Object.fromEntries(tools.map(x => [x.name, x]));
   assert.equal(byName.voidmail_account_info.annotations.readOnlyHint, true);

@@ -21,7 +21,7 @@ import { VoidmailRefusal, OWNER_CONSOLE_URL, sanitizeRequest } from './refusal.j
 import { AGENT_KEY_RE, OWNER_KEY_RE, type KeyStaging, commitStagedKeys, discardStaging, keyRoot as defaultKeyRoot, mailboxHasKeys, readAgentKeyFile, redactKeys, stageMailboxKeys, validAddress } from './keystore.js';
 
 const API_BASE = 'https://api.voidly.ai';
-export const VERSION = '1.2.0';
+export const VERSION = '1.2.1';
 /** The MCP server's own guard: it refuses to build any URL under the owner namespace. */
 const OWNER_PREFIX = '/v1/agent-mail/owner';
 
