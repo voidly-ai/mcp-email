@@ -93,12 +93,25 @@ server.connect = async (transport: Transport) => {
 
 // ── Tools ────────────────────────────────────────────────────────────────
 
+const requestedAddressSchema = z.string().trim().min(3).max(42).refine(value => {
+  const normalized = value.toLowerCase();
+  const local = normalized.endsWith('@voidmail.ai') ? normalized.slice(0, -'@voidmail.ai'.length) : normalized;
+  return local.length >= 3 && local.length <= 30 &&
+    /^[a-z][a-z0-9._-]*[a-z0-9]$/.test(local) && !local.includes('..');
+}, 'Use a 3-30 character local part or its exact @voidmail.ai address');
+
 server.tool(
   'voidmail_create_account',
   'Create a new @voidmail.ai email inbox for this agent. The agent key and the separate owner key are saved to 0600 files on this machine and never returned. The inbox starts with an owner-approved recipient list: the human owner approves recipients with the owner key. No phone number, no CAPTCHA required.',
-  { name: z.string().optional().describe('Agent name (optional)'), address: z.string().optional().describe('Preferred email address (optional, random if not specified)') },
+  { name: z.string().optional().describe('Agent name (optional)'), address: requestedAddressSchema.optional().describe('Preferred local part, for example myagent; the exact myagent@voidmail.ai address is also accepted. Random if omitted.') },
   { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
   async ({ name, address: addr }) => {
+    // The create API accepts only a local part, even when the caller supplied
+    // this domain as a full address. Keep the normalized part in the POST body.
+    if (addr) {
+      addr = addr.toLowerCase();
+      if (addr.endsWith('@voidmail.ai')) addr = addr.slice(0, -'@voidmail.ai'.length);
+    }
     // Everything that can fail on this machine fails BEFORE the mailbox exists:
     //  1. a requested address whose key directory already holds keys is refused;
     //  2. both key files are pre-written (placeholders, 0600, O_EXCL) in a staging directory.
@@ -161,7 +174,7 @@ server.tool(
   'voidmail_list_inbox',
   'List emails in the agent inbox. Returns structured email data including sender, subject, body, and metadata.',
   {
-    limit: z.number().int().min(1).max(100).optional().describe('Max emails to return (default 20, max 100)'),
+    limit: z.number().int().min(1).max(100).optional().describe('Max emails to return (default 50, max 100)'),
     offset: z.number().int().min(0).optional().describe('Pagination offset'),
     unread: z.boolean().optional().describe('Only return unread emails'),
     category: z.string().optional().describe('Filter by category'),
@@ -193,8 +206,8 @@ server.tool(
   'voidmail_search_inbox',
   'Search emails by keyword across subject, body, and sender. Returns matching emails.',
   {
-    query: z.string().describe('Search query'),
-    limit: z.number().int().min(1).max(100).optional().describe('Max results (default 20, max 100)'),
+    query: z.string().trim().min(1).describe('Nonempty search query'),
+    limit: z.number().int().min(1).max(50).optional().describe('Max results (default 20, max 50)'),
   },
   { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   async ({ query, limit }) => {
@@ -368,7 +381,7 @@ server.tool(
 
 server.tool(
   'voidmail_set_webhook',
-  'Set a webhook URL to get notified when new email arrives.',
+  'Set a webhook URL to get notified when new email arrives on an open-policy inbox. On an allowlist inbox this agent-key tool is refused; the human owner must use POST /v1/agent-mail/owner/webhook with the owner key.',
   {
     url: z.string().describe('HTTPS webhook URL'),
     secret: z.string().optional().describe('Signing secret for the X-Voidmail-Signature-256 HMAC header, at least 32 characters (server-generated if omitted)'),

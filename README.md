@@ -86,11 +86,11 @@ Check incoming mail with `voidmail_list_inbox`, then read a message with `voidma
 
 | Tool | Description |
 |------|-------------|
-| `voidmail_create_account` | Create a new @voidmail.ai inbox; saves both keys to 0600 files and returns only their paths |
+| `voidmail_create_account` | Create a new @voidmail.ai inbox from a 3-30 character local part (or its full @voidmail.ai address); saves both keys to 0600 files and returns only their paths |
 | `voidmail_account_info` | Get account details |
-| `voidmail_list_inbox` | List emails with pagination and filters |
+| `voidmail_list_inbox` | List emails with pagination and filters (default 50, max 100) |
 | `voidmail_read_email` | Read a specific email (auto-marks as read) |
-| `voidmail_search_inbox` | Full-text search across subject, body, sender |
+| `voidmail_search_inbox` | Full-text search across subject, body, sender (default 20, max 50) |
 | `voidmail_sending_limits` | Read sending policy without consuming send capacity |
 | `voidmail_send_once` | Send one authorized message with a saved operation ID and retained status |
 | `voidmail_send_status` | Read the same original send without sending again |
@@ -103,7 +103,7 @@ Check incoming mail with `voidmail_list_inbox`, then read a message with `voidma
 | `voidmail_create_alias` | Create disposable email alias |
 | `voidmail_list_aliases` | List all aliases |
 | `voidmail_delete_alias` | Remove alias |
-| `voidmail_set_webhook` | Legacy open-inbox agent-key webhook; protected inboxes require an owner-key route |
+| `voidmail_set_webhook` | Set an HTTPS webhook on an open-policy inbox; allowlist inboxes require the human owner to use `POST /v1/agent-mail/owner/webhook` with the owner key |
 | `voidmail_get_stats` | Inbox statistics |
 
 ## Resources (3)
