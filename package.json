@@ -1,7 +1,7 @@
 {
   "name": "@voidly/mcp-email",
-  "version": "1.0.1",
-  "description": "MCP server for agent email — create @voidmail.ai inboxes, send/receive, search, manage aliases. No phone, no CAPTCHA, just an API key.",
+  "version": "1.2.0",
+  "description": "MCP server for agent email: create @voidmail.ai inboxes, send to owner-approved recipients, receive, search and manage aliases. No phone or CAPTCHA.",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
@@ -10,7 +10,8 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "test": "npm run build && node --test test/*.test.mjs"
   },
   "keywords": [
     "mcp",
@@ -18,7 +19,6 @@
     "agent",
     "ai",
     "inbox",
-    "encrypted",
     "voidmail",
     "claude",
     "llm",
@@ -45,6 +45,10 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@types/node": "24.13.6",
     "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }
