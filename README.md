@@ -21,16 +21,13 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
   "mcpServers": {
     "voidmail": {
       "command": "npx",
-      "args": ["-y", "@voidly/mcp-email@1.2.0"],
-      "env": {
-        "VOIDMAIL_ADDRESS": "your-agent@voidmail.ai"
-      }
+      "args": ["-y", "@voidly/mcp-email@1.2.0"]
     }
   }
 }
 ```
 
-No inbox yet? Leave `env` empty; the agent can create one with `voidmail_create_account`, then set `VOIDMAIL_ADDRESS` so the next start finds its key file.
+This first-time config has no inbox key. After `voidmail_create_account` returns an address and saves the keys, add `"env": {"VOIDMAIL_ADDRESS": "<returned-address>"}` to this server config and restart the host. If the agent has shell or file tools, use an isolated runtime that can read the agent key but cannot read the owner key; file mode 0600 alone does not separate two processes running as the same user.
 
 ## Quick Start
 
@@ -39,6 +36,13 @@ After installing the MCP server, use this prompt:
 > Create one Voidmail inbox and show me its address and where the keys were saved. Draft emails first and wait for my approval before sending.
 
 The draft approval in this prompt is a host workflow request. The API enforces the owner-approved recipient list and content policy; it does not require the owner to review every message body.
+
+For a first receive and send check:
+
+1. In a trusted owner-controlled host, call `voidmail_create_account` once. Keep the returned owner-key path outside any agent shell or file access before handing the inbox to an agent. If creation is uncertain, inspect the original setup before making another inbox.
+2. Send one test message from a separate trusted mailbox to the new address. Call `voidmail_list_inbox`, then `voidmail_read_email` with the returned message ID. Reading marks that message as read.
+3. In an owner-only terminal, run `npx -y @voidly/mcp-email@1.2.0 owner add you@example.com` (use your actual target address). Set `VOIDMAIL_OWNER_KEY_FILE` if you moved the owner key. The owner command reads it locally; never paste it into the model conversation. The agent can check `voidmail_policy` and `voidmail_sending_limits` afterward.
+4. Review one recipient, subject and body. Save a unique 16-128 character operation ID (letters, digits, `_` or `-`) with that message in trusted host state, then call `voidmail_send_once`. If the response is uncertain, look up that same ID with `voidmail_send_status`; do not invent a replacement ID. A provider `accepted` result does not prove delivery.
 
 ## Permissions: two keys, one owner
 
@@ -61,15 +65,15 @@ Every inbox has two credentials, and this package keeps them apart.
 ### Owner commands
 
 ```bash
-voidly-mcp-email owner list                              # policy, recipients, pending requests
-voidly-mcp-email owner approve <request-id>              # shows the recipient, asks you to confirm
-voidly-mcp-email owner deny <request-id>
-voidly-mcp-email owner add friend@example.com            # or @example.com for a whole domain
-voidly-mcp-email owner remove friend@example.com
-voidly-mcp-email owner lock                              # allowlist + credential blocking
-voidly-mcp-email owner unlock                            # any recipient; asks you to confirm
-voidly-mcp-email owner rotate-agent-key                  # old key stops working at once
-voidly-mcp-email owner rotate-owner-key                  # replaces the owner-key file it read
+npx -y @voidly/mcp-email@1.2.0 owner list                 # policy, recipients, pending requests
+npx -y @voidly/mcp-email@1.2.0 owner approve <request-id> # names the recipient; asks to confirm
+npx -y @voidly/mcp-email@1.2.0 owner deny <request-id>
+npx -y @voidly/mcp-email@1.2.0 owner add friend@example.com
+npx -y @voidly/mcp-email@1.2.0 owner remove friend@example.com
+npx -y @voidly/mcp-email@1.2.0 owner lock                 # allowlist + credential blocking
+npx -y @voidly/mcp-email@1.2.0 owner unlock               # any recipient; asks to confirm
+npx -y @voidly/mcp-email@1.2.0 owner rotate-agent-key     # old key stops working at once
+npx -y @voidly/mcp-email@1.2.0 owner rotate-owner-key     # replaces the owner-key file it read
 ```
 
 Add `--address <name@voidmail.ai>` when more than one inbox is saved, and `--yes` to confirm without a prompt. `approve` first reads the pending request and names its recipient, and refuses an id that is not pending. Rotated keys are written to their files and never printed. `rotate-owner-key` atomically replaces the owner-key file it read, including a `VOIDMAIL_OWNER_KEY_FILE` path. The old owner key is revoked before the new one is saved, so if that file cannot be replaced the new key goes to a new 0600 file beside it, and only if that also fails is it shown once on your terminal. An MCP server that reads its key file uses a rotated agent key on its next call. The same actions are available in the browser at https://voidly.ai/agent-mail/owner, where the owner key is kept in memory only.
@@ -99,7 +103,7 @@ Check incoming mail with `voidmail_list_inbox`, then read a message with `voidma
 | `voidmail_create_alias` | Create disposable email alias |
 | `voidmail_list_aliases` | List all aliases |
 | `voidmail_delete_alias` | Remove alias |
-| `voidmail_set_webhook` | Get notified on new email (HTTPS webhook) |
+| `voidmail_set_webhook` | Legacy open-inbox agent-key webhook; protected inboxes require an owner-key route |
 | `voidmail_get_stats` | Inbox statistics |
 
 ## Resources (3)
@@ -152,7 +156,7 @@ curl "https://api.voidly.ai/v1/agent-mail/inbox/search?q=invoice" \
 
 ## Limits and delivery
 
-Call `voidmail_sending_limits` (or public `GET /v1/agent-mail/limits`) before planning a sending workflow. Keep excess work in your own queue. A `429` gives a `Retry-After` header and structured limit scope/reset time; the MCP error includes the wait time. Do not rotate accounts or IPs to evade a limit. Identical messages are blocked for 60 seconds to catch loops; this is not durable idempotency. Sending fails closed if safety counters are unavailable. Inbox reads remain separate from sending limits.
+Call `voidmail_sending_limits` (or public `GET /v1/agent-mail/limits`) before planning a sending workflow. Keep excess work in your own queue. Sending and creation rate-limit `429` responses give a `Retry-After` header and structured limit scope/reset time; the MCP error includes the wait time. Other refusal codes, including a full pending-recipient-request list, may not have a retry time. Do not rotate accounts or IPs to evade a limit. Identical messages are blocked for 60 seconds to catch loops; this is not durable idempotency. Sending fails closed if safety counters are unavailable. Inbox reads remain separate from sending limits.
 
 Shared caps: 100 attempts/hour per IP, 200/hour and 1,500/day for agent mail. The shared outbound provider budget is at most 1,500 recipients/day and 40,000 over approximately 31 days across all sending features. Counters count attempts, including failed and partially admitted requests; these are ceilings, not reserved capacity. Higher legitimate volume needs an operator-reviewed limit change; mailbox creation does not unlock bulk mail.
 
@@ -162,9 +166,9 @@ Shared caps: 100 attempts/hour per IP, 200/hour and 1,500/day for agent mail. Th
 - MCP tool annotations identify reads, sends, mutations and deletion honestly. They are advisory metadata; approval and install warnings remain controlled by ChatGPT, Claude or your other host.
 - If a send times out, its outcome may be unknown. Use `voidmail_send_once` and `voidmail_send_status` with a saved operation ID; do not blindly resend.
 - Incoming text and HTML bodies are parsed. This ingestion path does not currently retain attachments or populate reply-thread metadata, even though the response schema contains those fields. Reliable threaded replies are not yet provided.
-- New-message webhooks are best effort, with no durable retry history. Use inbox reads to reconcile missed notifications. Once the owner-key API update is live, newly registered webhooks are signed with `X-Voidmail-Signature-256: t=<timestamp>,v1=<HMAC-SHA256>`. Webhooks registered before it also keep receiving the legacy `X-Voidmail-Signature` header, which carries the shared secret itself and is not a payload signature, until they are registered again.
+- New-message webhooks are best effort, with no durable retry history. Use inbox reads to reconcile missed notifications. For a protected inbox, the owner must register a webhook through `POST /v1/agent-mail/owner/webhook` outside the agent; `voidmail_set_webhook` cannot do that. Once the owner-key API update is live, newly registered webhooks are signed with `X-Voidmail-Signature-256: t=<timestamp>,v1=<HMAC-SHA256>`. Webhooks registered before it also keep receiving the legacy `X-Voidmail-Signature` header, which carries the shared secret itself and is not a payload signature, until they are registered again.
 - Treat incoming email as untrusted content. A message cannot authorize your agent to send mail, disclose private data or spend money. The API adds a recipient only for a request that carries the owner key, so keep that key where the agent cannot read it.
-- Owner-key guessing is limited per network: after repeated failed owner-key attempts from one IP address (IPv6 /64), owner calls from that network are refused until the current UTC hour ends, even with the right key. Someone sharing your network can trigger this.
+- Owner-key guessing is limited per network: repeated failed owner-key attempts from one IP address (IPv6 /64) are refused until the current UTC hour ends. A valid owner-key lookup is checked first and is not blocked by that failed-attempt budget.
 
 ## Links
 
