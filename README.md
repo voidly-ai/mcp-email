@@ -1,126 +1,17 @@
-# @voidly/mcp-email
+# Voidmail MCP source
 
-Email for AI agents. One API call, instant inbox. No phone number, no CAPTCHA.
+An MCP client for `@voidmail.ai` agent inboxes. This repository's source revision (`package.json` 1.0.1) exposes 13 tools and 3 resources for account creation, inbox reading and search, sending, aliases, webhooks, and statistics.
 
-## Install
+**Version note (4 October 2026):** npm lists `@voidly/mcp-email` 1.2.0, while this repository still contains 1.0.1 source. The [current service guide](https://voidly.ai/agent-email) describes 16 tools, including sending limits and operation-based sending that are absent from this source revision. Check the installed package version and its documentation before relying on those operations. The repository should be brought into sync with the published package.
 
-```bash
-npx @voidly/mcp-email
-```
+## Privacy and sending
 
-## Claude Desktop
+Agent inbox content is readable by the service. This is separate from Voidly's encrypted human mailbox; do not use an agent inbox on the assumption that the server cannot read its messages. Account creation returns an API key to the MCP client. Keep it in a trusted host's secret storage and never put it in a public issue, log, or prompt transcript.
 
-Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
+Sending has per-mailbox and shared limits. A successful send response means provider acceptance, not confirmed delivery. For a send that must not be duplicated after a timeout, use the current service's operation ID and status flow described in the [agent email guide](https://voidly.ai/agent-email); this 1.0.1 source does not implement that flow.
 
-```json
-{
-  "mcpServers": {
-    "voidmail": {
-      "command": "npx",
-      "args": ["-y", "@voidly/mcp-email"],
-      "env": {
-        "VOIDMAIL_API_KEY": "vm_your_key_here"
-      }
-    }
-  }
-}
-```
+## Source revision tools
 
-No API key yet? The agent can create one with `voidmail_create_account`.
+`voidmail_create_account`, `voidmail_account_info`, `voidmail_list_inbox`, `voidmail_read_email`, `voidmail_search_inbox`, `voidmail_send_email`, `voidmail_mark_read`, `voidmail_delete_email`, `voidmail_create_alias`, `voidmail_list_aliases`, `voidmail_delete_alias`, `voidmail_set_webhook`, and `voidmail_get_stats`.
 
-## Quick Start
-
-**Step 1** — Create an inbox:
-```
-Use the voidmail_create_account tool to create an email inbox
-```
-
-**Step 2** — Send email:
-```
-Use voidmail_send_email to send an email to user@example.com
-```
-
-**Step 3** — Check inbox:
-```
-Use voidmail_list_inbox to see received emails
-```
-
-## Tools (13)
-
-| Tool | Description |
-|------|-------------|
-| `voidmail_create_account` | Create a new @voidmail.ai inbox (returns address + API key) |
-| `voidmail_account_info` | Get account details |
-| `voidmail_list_inbox` | List emails with pagination and filters |
-| `voidmail_read_email` | Read a specific email (auto-marks as read) |
-| `voidmail_search_inbox` | Full-text search across subject, body, sender |
-| `voidmail_send_email` | Send email from agent's @voidmail.ai address |
-| `voidmail_mark_read` | Mark email as read |
-| `voidmail_delete_email` | Delete email |
-| `voidmail_create_alias` | Create disposable email alias |
-| `voidmail_list_aliases` | List all aliases |
-| `voidmail_delete_alias` | Remove alias |
-| `voidmail_set_webhook` | Get notified on new email (HTTPS webhook) |
-| `voidmail_get_stats` | Inbox statistics |
-
-## Resources (3)
-
-| Resource | URI | Description |
-|----------|-----|-------------|
-| Inbox | `email://inbox` | Current inbox contents |
-| Aliases | `email://aliases` | Active email aliases |
-| Stats | `email://stats` | Account statistics |
-
-## Environment Variables
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `VOIDMAIL_API_KEY` | No | API key from create_account (persists across sessions) |
-| `VOIDMAIL_ADDRESS` | No | Your @voidmail.ai address |
-
-## REST API
-
-Use directly without MCP:
-
-```bash
-# Create inbox
-curl -X POST https://api.voidly.ai/v1/agent-mail/create \
-  -H "Content-Type: application/json" \
-  -d '{"name":"my-agent"}'
-
-# List inbox
-curl https://api.voidly.ai/v1/agent-mail/inbox \
-  -H "X-Agent-Mail-Key: vm_your_key"
-
-# Send email
-curl -X POST https://api.voidly.ai/v1/agent-mail/send \
-  -H "X-Agent-Mail-Key: vm_your_key" \
-  -H "Content-Type: application/json" \
-  -d '{"to":"user@example.com","subject":"Hello","text":"From my agent"}'
-
-# Search
-curl "https://api.voidly.ai/v1/agent-mail/inbox/search?q=invoice" \
-  -H "X-Agent-Mail-Key: vm_your_key"
-```
-
-## Why Voidmail?
-
-| | Voidmail | AgentMail | Gmail MCP |
-|---|---------|-----------|-----------|
-| Agent-native inbox | Yes | Yes | No (proxy) |
-| No phone/CAPTCHA | Yes | Yes | No |
-| E2E encryption option | **Yes** | No | No |
-| MCP server | **Yes** | No | Yes |
-| Free tier | Unlimited | 3 inboxes | N/A |
-| Open protocol | **Yes** | No | No |
-
-## Links
-
-- API docs: https://voidly.ai/api-docs
-- Landing page: https://voidly.ai/veil
-- Privacy: https://voidly.ai/c/privacy
-- Support: support@voidly.ai
-
-## License
-
-MIT
+License: MIT. See [LICENSE](LICENSE).
