@@ -15,3 +15,8 @@ Sending has per-mailbox and shared limits. A successful send response means prov
 `voidmail_create_account`, `voidmail_account_info`, `voidmail_list_inbox`, `voidmail_read_email`, `voidmail_search_inbox`, `voidmail_send_email`, `voidmail_mark_read`, `voidmail_delete_email`, `voidmail_create_alias`, `voidmail_list_aliases`, `voidmail_delete_alias`, `voidmail_set_webhook`, and `voidmail_get_stats`.
 
 License: MIT. See [LICENSE](LICENSE).
+
+
+## Trademarks
+
+Voidly™ and Voidpay™ are trademarks of Ai Analytics LLC. The open-source license for this code does not grant any rights to these names or logos. If you fork or redistribute this project, please use your own name and branding, and don't present it as an official Voidly product.
