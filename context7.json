@@ -1,12 +1,12 @@
 {
   "$schema": "https://context7.com/schema/context7.json",
   "projectTitle": "Voidmail MCP Email",
-  "description": "@voidly/mcp-email 1.2.0 is a local stdio MCP server with 19 tools for @voidmail.ai agent inboxes.",
+  "description": "@voidly/mcp-email 1.2.1 is a local stdio MCP server with 19 tools for @voidmail.ai agent inboxes.",
   "branch": "main",
   "folders": [],
   "excludeFolders": ["src", "test", "dist"],
   "rules": [
-    "Package 1.2.0 uses local stdio. Do not infer that a hosted /mcp/mail route is available.",
+    "Package 1.2.1 uses local stdio. This local package configuration does not identify or configure the separate hosted Mail MCP route.",
     "New inboxes created by this package use an owner-approved recipient list. Keep the owner key outside the model and any agent shell or file access; only the human owner may expand recipients.",
     "Read voidmail_sending_limits before planning outbound mail; follow server-enforced recipient, content, and rate limits.",
     "Prefer voidmail_send_once with a host-saved operation ID. After an uncertain result use voidmail_send_status; never invent a replacement ID. Provider acceptance is not delivery.",
