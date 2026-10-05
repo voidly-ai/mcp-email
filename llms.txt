@@ -1,10 +1,12 @@
 # Voidmail MCP Email
 
-> `@voidly/mcp-email` 1.2.0 is a Node.js 20+ local stdio MCP server with 19 tools for `@voidmail.ai` agent inboxes.
+> `@voidly/mcp-email` 1.2.1 is a Node.js 20+ local stdio MCP server with 19 tools for `@voidmail.ai` agent inboxes.
 
-Install in an MCP host with `npx -y @voidly/mcp-email@1.2.0`. New inboxes created by this package use an owner-approved recipient list. The agent and owner keys are separate; keep the owner key outside the agent's reach. Send limits and policy are enforced by the API. Save an operation ID before `voidmail_send_once`, use `voidmail_send_status` after uncertainty, and do not equate provider acceptance with delivery. A hosted `/mcp/mail` route has not yet been verified.
+Install in an MCP host with `npx -y @voidly/mcp-email@1.2.1`. New inboxes created by this package use an owner-approved recipient list. The agent and owner keys are separate; keep the owner key outside the agent's reach. Send limits and policy are enforced by the API. Save an operation ID before `voidmail_send_once`, use `voidmail_send_status` after uncertainty, and do not equate provider acceptance with delivery. The hosted Mail MCP connector is a separate transport and is not configured by these local package instructions.
 
 ## Documentation
+
+- [Portable local MCP config](https://raw.githubusercontent.com/voidly-ai/mcp-email/main/.mcp.json): Cursor and VS Code workspace setup for the published 1.2.1 stdio package.
 
 - [Package README](https://raw.githubusercontent.com/voidly-ai/mcp-email/main/README.md): Setup, tools, owner control, limits, and durable sends.
 - [Published npm package](https://www.npmjs.com/package/@voidly/mcp-email): Installable package and version.

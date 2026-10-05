@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "voidmail": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@voidly/mcp-email@1.2.1"
+      ]
+    }
+  }
+}

@@ -9,8 +9,32 @@ Agent inboxes are readable by the server; they are not end-to-end encrypted. [Hu
 Requires Node.js 20 or newer.
 
 ```bash
-npx -y @voidly/mcp-email@1.2.0
+npx -y @voidly/mcp-email@1.2.1
 ```
+
+### Cursor and VS Code
+
+[![Add to Cursor](https://cursor.com/deeplink/mcp-install-dark.png)](cursor://anysphere.cursor-deeplink/mcp/install?name=voidmail&config=eyJjb21tYW5kIjoibnB4IiwiYXJncyI6WyIteSIsIkB2b2lkbHkvbWNwLWVtYWlsQDEuMi4xIl19)
+
+[Install in VS Code](vscode:mcp/install?%7B%22name%22%3A%22voidmail%22%2C%22command%22%3A%22npx%22%2C%22args%22%3A%5B%22-y%22%2C%22%40voidly%2Fmcp-email%401.2.1%22%5D%7D)
+
+Both links install the **local stdio** package at 1.2.1. They do not create an inbox or configure the separate hosted connector. Review the command before accepting either install prompt. For manual workspace setup in Cursor or VS Code, copy the root [`.mcp.json`](./.mcp.json) configuration:
+
+```json
+{
+  "mcpServers": {
+    "voidmail": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@voidly/mcp-email@1.2.1"
+      ]
+    }
+  }
+}
+```
+
+**Before creating an inbox in a coding agent:** `voidmail_create_account` saves an owner key on the local machine. Keep that key outside the agent's shell and file access before handing the inbox to the agent. A 0600 file owned by the same OS user is not enough separation. The server can read message contents; provider acceptance of a send is not delivery.
 
 ## Claude Desktop
 
@@ -21,7 +45,7 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
   "mcpServers": {
     "voidmail": {
       "command": "npx",
-      "args": ["-y", "@voidly/mcp-email@1.2.0"]
+      "args": ["-y", "@voidly/mcp-email@1.2.1"]
     }
   }
 }
@@ -41,7 +65,7 @@ For a first receive and send check:
 
 1. In a trusted owner-controlled host, call `voidmail_create_account` once. Keep the returned owner-key path outside any agent shell or file access before handing the inbox to an agent. If creation is uncertain, inspect the original setup before making another inbox.
 2. Send one test message from a separate trusted mailbox to the new address. Call `voidmail_list_inbox`, then `voidmail_read_email` with the returned message ID. Reading marks that message as read.
-3. In an owner-only terminal, run `npx -y @voidly/mcp-email@1.2.0 owner add you@example.com` (use your actual target address). Set `VOIDMAIL_OWNER_KEY_FILE` if you moved the owner key. The owner command reads it locally; never paste it into the model conversation. The agent can check `voidmail_policy` and `voidmail_sending_limits` afterward.
+3. In an owner-only terminal, run `npx -y @voidly/mcp-email@1.2.1 owner add you@example.com` (use your actual target address). Set `VOIDMAIL_OWNER_KEY_FILE` if you moved the owner key. The owner command reads it locally; never paste it into the model conversation. The agent can check `voidmail_policy` and `voidmail_sending_limits` afterward.
 4. Review one recipient, subject and body. Save a unique 16-128 character operation ID (letters, digits, `_` or `-`) with that message in trusted host state, then call `voidmail_send_once`. If the response is uncertain, look up that same ID with `voidmail_send_status`; do not invent a replacement ID. A provider `accepted` result does not prove delivery.
 
 ## Permissions: two keys, one owner
@@ -65,15 +89,15 @@ Every inbox has two credentials, and this package keeps them apart.
 ### Owner commands
 
 ```bash
-npx -y @voidly/mcp-email@1.2.0 owner list                 # policy, recipients, pending requests
-npx -y @voidly/mcp-email@1.2.0 owner approve <request-id> # names the recipient; asks to confirm
-npx -y @voidly/mcp-email@1.2.0 owner deny <request-id>
-npx -y @voidly/mcp-email@1.2.0 owner add friend@example.com
-npx -y @voidly/mcp-email@1.2.0 owner remove friend@example.com
-npx -y @voidly/mcp-email@1.2.0 owner lock                 # allowlist + credential blocking
-npx -y @voidly/mcp-email@1.2.0 owner unlock               # any recipient; asks to confirm
-npx -y @voidly/mcp-email@1.2.0 owner rotate-agent-key     # old key stops working at once
-npx -y @voidly/mcp-email@1.2.0 owner rotate-owner-key     # replaces the owner-key file it read
+npx -y @voidly/mcp-email@1.2.1 owner list                 # policy, recipients, pending requests
+npx -y @voidly/mcp-email@1.2.1 owner approve <request-id> # names the recipient; asks to confirm
+npx -y @voidly/mcp-email@1.2.1 owner deny <request-id>
+npx -y @voidly/mcp-email@1.2.1 owner add friend@example.com
+npx -y @voidly/mcp-email@1.2.1 owner remove friend@example.com
+npx -y @voidly/mcp-email@1.2.1 owner lock                 # allowlist + credential blocking
+npx -y @voidly/mcp-email@1.2.1 owner unlock               # any recipient; asks to confirm
+npx -y @voidly/mcp-email@1.2.1 owner rotate-agent-key     # old key stops working at once
+npx -y @voidly/mcp-email@1.2.1 owner rotate-owner-key     # replaces the owner-key file it read
 ```
 
 Add `--address <name@voidmail.ai>` when more than one inbox is saved, and `--yes` to confirm without a prompt. `approve` first reads the pending request and names its recipient, and refuses an id that is not pending. Rotated keys are written to their files and never printed. `rotate-owner-key` atomically replaces the owner-key file it read, including a `VOIDMAIL_OWNER_KEY_FILE` path. The old owner key is revoked before the new one is saved, so if that file cannot be replaced the new key goes to a new 0600 file beside it, and only if that also fails is it shown once on your terminal. An MCP server that reads its key file uses a rotated agent key on its next call. The same actions are available in the browser at https://voidly.ai/agent-mail/owner, where the owner key is kept in memory only.
