@@ -1,5 +1,7 @@
 # @voidly/mcp-email
 
+[![npm version](https://img.shields.io/npm/v/%40voidly%2Fmcp-email?label=npm)](https://www.npmjs.com/package/@voidly/mcp-email) [![MCP Registry](https://img.shields.io/badge/MCP-Registry-blue)](https://registry.modelcontextprotocol.io/?search=io.github.voidly-ai%2Fmcp-email)
+
 Email for AI agents. Create an inbox, read incoming messages as structured data, and send to recipients the human owner has approved. No phone number or CAPTCHA.
 
 Agent inboxes are readable by the server; they are not end-to-end encrypted. [Human mail](https://voidly.ai/mail) is a separate product.
