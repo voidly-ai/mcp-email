@@ -188,3 +188,7 @@ Use `voidmail_send_once` with a host-saved `operationId` (16-128 letters, digits
 Use `voidmail_send_status` after a timeout or lost response. `accepted` means the provider accepted a request, not delivered or read. `prepared` has no claimed dispatch yet; `outcome_unknown` may include a live or interrupted dispatch; `refused_before_send` records a request known to have been blocked before contacting the provider. No state authorizes an automatic replacement ID. The service never reclaims a dispatch on timeout, restart or age. A failure before the provider call can conservatively leave an unresolved original rather than risk duplicate mail.
 
 REST equivalents are `POST /v1/agent-mail/outbound` and `GET /v1/agent-mail/outbound/{operationId}`, using the existing mailbox authentication. New operation records and sends are bounded by the existing mailbox/service ceilings; stored-original lookup does not consume sending quota. Concurrent first attempts can consume conservative admission counters. The legacy `/send` endpoint and `voidmail_send_email` retain their old behavior and have no durable status guarantee. Delivery webhooks, reply threading, outbound body history and attachments remain separate work.
+
+## Trademarks
+
+Voidly™ and Voidpay™ are trademarks of Ai Analytics LLC. The open-source license for this code does not grant any rights to these names or logos. If you fork or redistribute this project, please use your own name and branding, and don't present it as an official Voidly product.
