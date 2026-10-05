@@ -12,18 +12,31 @@ Requires Node.js 20 or newer.
 npx -y @voidly/mcp-email@1.2.1
 ```
 
-### Cursor and VS Code
+### Add to Cursor
 
-[![Add to Cursor](https://cursor.com/deeplink/mcp-install-dark.png)](cursor://anysphere.cursor-deeplink/mcp/install?name=voidmail&config=eyJjb21tYW5kIjoibnB4IiwiYXJncyI6WyIteSIsIkB2b2lkbHkvbWNwLWVtYWlsQDEuMi4xIl19)
+Copy this install URI into your browser address bar. Cursor asks you to review the local command before adding it:
 
-[Install in VS Code](vscode:mcp/install?%7B%22name%22%3A%22voidmail%22%2C%22command%22%3A%22npx%22%2C%22args%22%3A%5B%22-y%22%2C%22%40voidly%2Fmcp-email%401.2.1%22%5D%7D)
+```text
+cursor://anysphere.cursor-deeplink/mcp/install?name=voidmail&config=eyJ0eXBlIjoic3RkaW8iLCJjb21tYW5kIjoibnB4IiwiYXJncyI6WyIteSIsIkB2b2lkbHkvbWNwLWVtYWlsQDEuMi4xIl19
+```
 
-Both links install the **local stdio** package at 1.2.1. They do not create an inbox or configure the separate hosted connector. Review the command before accepting either install prompt. For manual workspace setup in Cursor or VS Code, copy the root [`.mcp.json`](./.mcp.json) configuration:
+For manual project setup, copy the JSON below into `.cursor/mcp.json` (or `~/.cursor/mcp.json` for all projects).
+
+### Install in VS Code
+
+Copy this install URI into your browser address bar. VS Code asks you to review the local command before adding it:
+
+```text
+vscode:mcp/install?%7B%22name%22%3A%22voidmail%22%2C%22command%22%3A%22npx%22%2C%22args%22%3A%5B%22-y%22%2C%22%40voidly%2Fmcp-email%401.2.1%22%5D%7D
+```
+
+For manual workspace setup, copy the JSON below into `.mcp.json` at the workspace root. GitHub renders custom app URIs as plain text, so use the copyable snippets above.
 
 ```json
 {
   "mcpServers": {
     "voidmail": {
+      "type": "stdio",
       "command": "npx",
       "args": [
         "-y",
@@ -33,6 +46,8 @@ Both links install the **local stdio** package at 1.2.1. They do not create an i
   }
 }
 ```
+
+These instructions run the **local stdio** package at 1.2.1. They do not create an inbox or configure the separate hosted connector. The repository's root [`.mcp.json`](./.mcp.json) contains the same local command and no credentials.
 
 **Before creating an inbox in a coding agent:** `voidmail_create_account` saves an owner key on the local machine. Keep that key outside the agent's shell and file access before handing the inbox to the agent. A 0600 file owned by the same OS user is not enough separation. The server can read message contents; provider acceptance of a send is not delivery.
 

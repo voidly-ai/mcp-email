@@ -1,6 +1,7 @@
 {
   "mcpServers": {
     "voidmail": {
+      "type": "stdio",
       "command": "npx",
       "args": [
         "-y",

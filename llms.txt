@@ -7,7 +7,6 @@ Install in an MCP host with `npx -y @voidly/mcp-email@1.2.1`. New inboxes create
 ## Documentation
 
 - [Portable local MCP config](https://raw.githubusercontent.com/voidly-ai/mcp-email/main/.mcp.json): Cursor and VS Code workspace setup for the published 1.2.1 stdio package.
-
 - [Package README](https://raw.githubusercontent.com/voidly-ai/mcp-email/main/README.md): Setup, tools, owner control, limits, and durable sends.
 - [Published npm package](https://www.npmjs.com/package/@voidly/mcp-email): Installable package and version.
 
