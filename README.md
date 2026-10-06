@@ -47,7 +47,7 @@ For manual workspace setup, copy the JSON below into `.mcp.json` at the workspac
 }
 ```
 
-These instructions run the **local stdio** package at 1.2.1. They do not create an inbox or configure the separate hosted connector. The repository's root [`.mcp.json`](./.mcp.json) contains the same local command and no credentials.
+These instructions run the **local stdio** package at 1.2.1. They do not create an inbox. The repository's root [`.mcp.json`](./.mcp.json) keeps that local command as `voidmail` and also offers the hosted connector as `voidmail-hosted` at `https://api.voidly.ai/mcp/mail`. It contains no credentials. The hosted connector has its own tool set; use `voidmail_setup` to check mailbox configuration before authenticated inbox actions.
 
 **Before creating an inbox in a coding agent:** `voidmail_create_account` saves an owner key on the local machine. Keep that key outside the agent's shell and file access before handing the inbox to the agent. A 0600 file owned by the same OS user is not enough separation. The server can read message contents; provider acceptance of a send is not delivery.
 

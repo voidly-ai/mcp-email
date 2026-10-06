@@ -7,6 +7,10 @@
         "-y",
         "@voidly/mcp-email@1.2.1"
       ]
+    },
+    "voidmail-hosted": {
+      "type": "http",
+      "url": "https://api.voidly.ai/mcp/mail"
     }
   }
 }
