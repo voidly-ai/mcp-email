@@ -1,13 +1,13 @@
 # Voidmail MCP Email
 
-> `@voidly/mcp-email` 1.2.1 is a Node.js 20+ local stdio MCP server with 19 tools for `@voidmail.ai` agent inboxes.
+> `@voidly/mcp-email` 2.0.1 is a Node.js 20+ local stdio MCP server with 19 tools for `@voidmail.ai` agent inboxes.
 
-Install in an MCP host with `npx -y @voidly/mcp-email@1.2.1`. New inboxes created by this package use an owner-approved recipient list. The agent and owner keys are separate; keep the owner key outside the agent's reach. Send limits and policy are enforced by the API. Save an operation ID before `voidmail_send_once`, use `voidmail_send_status` after uncertainty, and do not equate provider acceptance with delivery. The hosted Mail MCP connector is a separate transport and is not configured by these local package instructions.
+Install in an MCP host with `npx -y @voidly/mcp-email@2.0.1`. Creating an inbox needs an already enrolled `did:voidly:` agent identity and its separate signing-key file, set by the human in `VOIDMAIL_CREATOR_DID` and `VOIDMAIL_CREATOR_SIGNING_KEY_FILE`. New inboxes created by this package use an owner-approved recipient list. The agent and owner keys are separate; keep the owner key outside the agent's reach. Stored mail is readable by the server until the owner runs `voidly-mcp-email owner keys init`; after that, new mail is stored encrypted to a key made on the owner's machine and is decrypted locally, and tool results label each message `storage: "sealed"` or `storage: "server-readable"`. This is not end-to-end encryption: incoming mail is plaintext to the receiving server before it is sealed, and outside email is not end-to-end encrypted. Send limits and policy are enforced by the API. Save an operation ID before `voidmail_send_once`, use `voidmail_send_status` after uncertainty, and do not equate provider acceptance with delivery. The hosted Mail MCP connector is a separate transport and is not configured by these local package instructions.
 
 ## Documentation
 
-- [Portable local MCP config](https://raw.githubusercontent.com/voidly-ai/mcp-email/main/.mcp.json): Copy into Cursor `.cursor/mcp.json`, or use at a VS Code workspace root, for the published 1.2.1 stdio package.
-- [Package README](https://raw.githubusercontent.com/voidly-ai/mcp-email/main/README.md): Setup, tools, owner control, limits, and durable sends.
+- [Portable local MCP config](https://raw.githubusercontent.com/voidly-ai/mcp-email/main/.mcp.json): Copy into Cursor `.cursor/mcp.json`, or use at a VS Code workspace root, for the published 2.0.1 stdio package.
+- [Package README](https://raw.githubusercontent.com/voidly-ai/mcp-email/main/README.md): Setup, inbox creation, encrypted storage, tools, owner control, limits, and durable sends.
 - [Published npm package](https://www.npmjs.com/package/@voidly/mcp-email): Installable package and version.
 
 ## Source

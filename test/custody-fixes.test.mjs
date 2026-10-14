@@ -10,6 +10,7 @@ import { join } from 'node:path';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { createVoidmailServer } from '../dist/server.js';
+import { creatorOptions } from './helpers/creator.mjs';
 import { runOwnerCli } from '../dist/owner-cli.js';
 import { redactKeys, validAddress } from '../dist/keystore.js';
 
@@ -20,7 +21,7 @@ const ownerKey = () => 'vmo_' + base62(40);
 const tempRoot = () => mkdtempSync(join(tmpdir(), 'voidmail-fix-'));
 
 async function connect(t, options) {
-  const server = createVoidmailServer(options);
+  const server = createVoidmailServer({ ...creatorOptions(t), ...options });
   const client = new Client({ name: 'fixes', version: '1' });
   const [left, right] = InMemoryTransport.createLinkedPair();
   await server.connect(left); await client.connect(right);

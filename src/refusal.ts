@@ -17,6 +17,14 @@ export const REFUSAL_CODES = [
   'bootstrap_not_available',
   'content_policy_floor',
   'owner_auth_rate_limited',
+  // Mail key routes (2.0, owner CLI): /v1/agent-mail/owner/keys*
+  'key_possession_not_proven',
+  'mail_key_epoch_conflict',
+  'mail_key_set_conflict',
+  'signing_key_change_not_confirmed',
+  'key_challenge_refused',
+  'mail_keys_unavailable',
+  'owner_key_from_agent_key',
 ] as const;
 export type RefusalCode = typeof REFUSAL_CODES[number];
 
@@ -112,6 +120,20 @@ export function recoveryText(detail: RefusalDetail, address: string | null = nul
       return "This mailbox's owner key was minted from its agent key (legacy bootstrap), so the credential guard can be set to observe or enforce but never off.";
     case 'owner_auth_rate_limited':
       return 'Too many failed owner-key attempts came from this network in the last hour, so owner calls are refused for now. Wait at least an hour, then use the exact owner key from its file. No automatic retry.';
+    case 'key_possession_not_proven':
+      return 'The server did not accept the proof that this machine holds the key. Nothing changed; run the key command again for a fresh challenge.';
+    case 'mail_key_epoch_conflict':
+      return `The mailbox key list changed since it was read. Nothing changed. Run \`voidly-mcp-email owner keys status${addressArg(address)}\`, then try again.`;
+    case 'mail_key_set_conflict':
+      return `The server refused the key set (a concurrent change or an expired challenge). Nothing changed. Run \`voidly-mcp-email owner keys status${addressArg(address)}\`, then try again.`;
+    case 'signing_key_change_not_confirmed':
+      return 'The server holds a different signing key for this mailbox. Nothing changed.';
+    case 'key_challenge_refused':
+      return 'Too many outstanding key challenges. Wait 10 minutes, then try again.';
+    case 'mail_keys_unavailable':
+      return 'The mail key directory is temporarily unavailable. Nothing changed; try again in a minute.';
+    case 'owner_key_from_agent_key':
+      return "This mailbox's owner key was minted from its agent key (legacy bootstrap), so it cannot register mail encryption keys or rotate the agent key. Policy and recipient commands still work. For encrypted storage, create a new inbox with voidmail_create_account and move to it.";
     case 'send_safety_unavailable':
       return 'Nothing was sent: the mail safety checks were temporarily unavailable. Wait at least a minute, then retry the same send; with voidmail_send_once reuse the same operationId.';
   }

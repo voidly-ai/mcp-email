@@ -1,7 +1,9 @@
 // `voidly-mcp-email owner <command>`: the human mailbox owner's tool.
 //
-// It reads ONE credential, the owner-key file, and calls ONLY /v1/agent-mail/owner/*.
-// It never reads the agent-key file and never sends X-Agent-Mail-Key. After
+// It authenticates with ONE credential, the owner-key file, and calls ONLY /v1/agent-mail/owner/*.
+// It never reads the agent-key file and never sends X-Agent-Mail-Key. `owner keys ...`
+// (owner-keys.ts) also reads and writes the mailbox's mail encryption keys on this machine;
+// it sends only public keys, signatures and a proof-of-possession answer, never a private key. After
 // rotate-agent-key it writes the new agent key to the agent-key file (0600) without
 // printing it; after rotate-owner-key it atomically replaces the exact owner-key file it
 // read (VOIDMAIL_OWNER_KEY_FILE when set), never a copy under the agent key directory.
@@ -14,6 +16,7 @@ import { basename, join } from 'node:path';
 import { createInterface } from 'node:readline/promises';
 import { requestJson } from './request.js';
 import { VoidmailRefusal } from './refusal.js';
+import { KEYS_USAGE, runKeysCommand } from './owner-keys.js';
 import { AGENT_KEY_FILE, AGENT_KEY_RE, OWNER_KEY_FILE, OWNER_KEY_RE, keyRoot, readKeyFileAt, redactKeys, replaceKeyFile, replaceKeyFileAt, validAddress, writeKeyBeside } from './keystore.js';
 
 const API_BASE = 'https://api.voidly.ai';
@@ -39,9 +42,12 @@ Commands (owner key only):
   unlock                     Let the agent email any address            (widens: confirm)
   rotate-agent-key           Revoke the agent key; the new one is saved to the agent-key file
   rotate-owner-key           Replace the owner key; the new one replaces the owner-key file it was read from
+${KEYS_USAGE}
 
 The owner key is read from <key dir>/<address>/owner-key (key dir: VOIDMAIL_KEY_DIR,
-default ~/.voidly/mcp-email) or from VOIDMAIL_OWNER_KEY_FILE.`;
+default ~/.voidly/mcp-email) or from VOIDMAIL_OWNER_KEY_FILE. Mail encryption keys live in
+<key dir>/<address>/ (mail-secret-key, keyring/); the signing key is <key dir>/<address>/mail-signing-key
+or VOIDMAIL_SIGNING_KEY_FILE.`;
 
 // Honest wording for an owner rotation whose outcome is unknown. "Run it again" would be
 // wrong: a retry needs the old owner key, which the server may already have revoked.
@@ -96,7 +102,7 @@ export async function runOwnerCli(argv: string[], io: OwnerCliIO = {}): Promise<
   const [command, arg, ...rest] = positional;
   if (!command || rest.length) { err(USAGE); return 2; }
 
-  type Plan = { method: string; path: string; body?: unknown; widens?: string; rotate?: 'agent' | 'owner'; approveId?: string };
+  type Plan = { method: string; path: string; body?: unknown; widens?: string; rotate?: 'agent' | 'owner'; approveId?: string; keys?: string };
   let plan: Plan;
   const needArg = (re: RegExp, what: string): string | null => (arg && re.test(arg)) ? arg : (err(`${command} needs a valid ${what}.\n\n${USAGE}`), null);
   switch (command) {
@@ -114,14 +120,16 @@ export async function runOwnerCli(argv: string[], io: OwnerCliIO = {}): Promise<
       plan = { method: 'POST', path: '/policy', body: { recipient_policy: 'open' }, widens: 'Let the agent email ANY address with no approval?' }; break;
     case 'rotate-agent-key': if (arg) { err(USAGE); return 2; } plan = { method: 'POST', path: '/rotate-agent-key', rotate: 'agent' }; break;
     case 'rotate-owner-key': if (arg) { err(USAGE); return 2; } plan = { method: 'POST', path: '/rotate-owner-key', rotate: 'owner' }; break;
+    case 'keys': if (!arg || !['init', 'status', 'rotate'].includes(arg)) { err(USAGE); return 2; } plan = { method: 'GET', path: '/keys', keys: arg }; break;
     default: err(USAGE); return 2;
   }
 
   const root = keyRoot(env);
   const address = resolveAddress(addressFlag, env, root);
   const ownerKeyPath = env.VOIDMAIL_OWNER_KEY_FILE || (address ? join(root, address, OWNER_KEY_FILE) : null);
-  // rotate-agent-key writes <key dir>/<address>/agent-key; rotate-owner-key writes the file it read.
-  if (!ownerKeyPath || (plan.rotate === 'agent' && !address)) { err('Name the mailbox with --address <name@voidmail.ai> (or VOIDMAIL_ADDRESS).'); return 2; }
+  // rotate-agent-key and keys ... write under <key dir>/<address>/, so they need the address;
+  // rotate-owner-key writes the file it read.
+  if (!ownerKeyPath || ((plan.rotate === 'agent' || plan.keys) && !address)) { err('Name the mailbox with --address <name@voidmail.ai> (or VOIDMAIL_ADDRESS).'); return 2; }
   let ownerKey: string;
   try { ownerKey = readOwnerKeyFile(ownerKeyPath); }
   catch { err(`The owner key could not be read from ${ownerKeyPath}. It must hold a vmo_ key and be mode 0600.`); return 1; }
@@ -136,6 +144,15 @@ export async function runOwnerCli(argv: string[], io: OwnerCliIO = {}): Promise<
     err(error instanceof Error ? redactKeys(error.message, [ownerKey]) : 'Owner request failed.');
     return 1;
   };
+
+  if (plan.keys) {
+    try {
+      return await runKeysCommand(plan.keys, { root, address: address!, env, yes, out, err, confirm, call, refusal });
+    } catch (error) {
+      err(error instanceof Error ? redactKeys(error.message, [ownerKey]) : 'The key command failed.');
+      return 1;
+    }
+  }
 
   // approve: show the human WHICH recipient a request id stands for before widening. The
   // agent (possibly prompt-injected) chose that recipient; an opaque id is not consent.
