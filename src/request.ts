@@ -2,7 +2,9 @@ import { parseRefusal, sanitizeKinds, VoidmailRefusal } from './refusal.js';
 
 class VoidmailRateLimitError extends Error {}
 
-export interface ResponseMeta { contentWarning?: string[] }
+export interface ResponseMeta { contentWarning?: string[]; status?: number }
+
+export const DEFAULT_MAX_BYTES = 2 * 1024 * 1024;
 
 /** Read at most `max` bytes of an error body; anything larger is not a refusal. */
 async function boundedErrorJson(response: Response, max = 16 * 1024): Promise<unknown> {
@@ -22,7 +24,7 @@ async function boundedErrorJson(response: Response, max = 16 * 1024): Promise<un
 }
 
 /** One bounded attempt. Never retry a send or replay credentials on redirects. */
-export async function requestJson(fetcher: typeof fetch, url: string, init: RequestInit, timeoutMs = 20_000, meta?: ResponseMeta): Promise<any> {
+export async function requestJson(fetcher: typeof fetch, url: string, init: RequestInit, timeoutMs = 20_000, meta?: ResponseMeta, maxBytes = DEFAULT_MAX_BYTES): Promise<any> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   const uncertain = init.method !== 'GET';
@@ -30,6 +32,7 @@ export async function requestJson(fetcher: typeof fetch, url: string, init: Requ
   try {
     const response = await fetcher(url, { ...init, redirect: 'error', signal: controller.signal });
     status = response.status;
+    if (meta) meta.status = response.status;
     if (response.status === 429) {
       // The pending-request cap and the owner-auth failure limit share 429 with rate limits; only their closed words are recognised.
       const capped = parseRefusal(await boundedErrorJson(response), 429);
@@ -59,9 +62,9 @@ export async function requestJson(fetcher: typeof fetch, url: string, init: Requ
         const { done, value } = await reader.read();
         if (done) break;
         size += value.byteLength;
-        if (size > 2 * 1024 * 1024) {
+        if (size > maxBytes) {
           await reader.cancel();
-          throw new Error('Response exceeds the 2 MiB limit; request fewer messages.');
+          throw new Error(`Response exceeds the ${Math.round(maxBytes / 1048576)} MiB limit; request fewer messages.`);
         }
         text += decoder.decode(value, { stream: true });
       }
@@ -76,6 +79,44 @@ export async function requestJson(fetcher: typeof fetch, url: string, init: Requ
     const context = status === undefined ? '' : ` HTTP ${status}.`;
     throw new Error((uncertain
       ? 'Voidmail operation was not confirmed. Its outcome may be unknown; do not automatically retry or resend. Reconcile the original request.'
-      : 'Voidmail read failed or exceeded its 20-second / 2 MiB bound. Request fewer messages or try the read again.') + context);
+      : `Voidmail read failed or exceeded its ${Math.round(timeoutMs / 1000)}-second / ${Math.round(maxBytes / 1048576)} MiB bound. Request fewer messages or try the read again.`) + context);
+  } finally { clearTimeout(timer); }
+}
+
+/**
+ * One bounded GET of a binary body (sealed ciphertext). Same rules as requestJson: no
+ * redirects, no retry, a hard size bound, and no server text reflected in errors.
+ */
+export async function requestBytes(fetcher: typeof fetch, url: string, init: RequestInit, timeoutMs = 20_000, maxBytes = DEFAULT_MAX_BYTES): Promise<Uint8Array> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  let status: number | undefined;
+  try {
+    const response = await fetcher(url, { ...init, method: 'GET', redirect: 'error', signal: controller.signal });
+    status = response.status;
+    if (!response.ok) {
+      const refusal = [401, 404, 409, 503].includes(response.status) ? parseRefusal(await boundedErrorJson(response), response.status) : null;
+      if (refusal) throw new VoidmailRefusal(refusal);
+      await response.body?.cancel().catch(() => {});
+      throw new Error(`Voidmail API returned HTTP ${response.status}.`);
+    }
+    if (!response.body) throw new Error('Missing response body.');
+    const reader = response.body.getReader();
+    const chunks: Uint8Array[] = []; let size = 0;
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        size += value.byteLength;
+        if (size > maxBytes) { await reader.cancel(); throw new Error('too large'); }
+        chunks.push(value);
+      }
+    } finally { reader.releaseLock(); }
+    const out = new Uint8Array(size); let offset = 0;
+    for (const c of chunks) { out.set(c, offset); offset += c.byteLength; }
+    return out;
+  } catch (error) {
+    if (error instanceof VoidmailRefusal) throw error;
+    throw new Error(`Voidmail read failed or exceeded its ${Math.round(timeoutMs / 1000)}-second / ${Math.round(maxBytes / 1048576)} MiB bound.${status === undefined ? '' : ` HTTP ${status}.`}`);
   } finally { clearTimeout(timer); }
 }

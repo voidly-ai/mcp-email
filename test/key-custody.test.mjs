@@ -11,6 +11,7 @@ import { fileURLToPath } from 'node:url';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { createVoidmailServer } from '../dist/server.js';
+import { creatorOptions } from './helpers/creator.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const nonce = randomBytes(6).toString('hex');
@@ -56,7 +57,7 @@ function leakyApi(mode, calls) {
 }
 
 async function connect(t, options) {
-  const server = createVoidmailServer(options);
+  const server = createVoidmailServer({ ...creatorOptions(t), ...options });
   const client = new Client({ name: 'synthetic-custody-check', version: '1' });
   const [left, right] = InMemoryTransport.createLinkedPair();
   await server.connect(left); await client.connect(right);
@@ -215,12 +216,24 @@ test('static: the MCP server module graph has no owner-key reader, owner header 
     for (const m of src.matchAll(/from\s+'\.\/([\w-]+\.js)'/g)) pending.push(m[1]);
     for (const m of src.matchAll(/import\('\.\/([\w-]+\.js)'\)/g)) pending.push(m[1]);
   }
-  assert.deepEqual([...graph].sort(), ['keystore.js', 'refusal.js', 'request.js', 'server.js']);
+  // The creator signer makes a request proof with an enrolled agent identity.
+  // The inbox mail-key signer / registrar (owner-keys.js) stays outside the MCP server.
+  assert.deepEqual([...graph].sort(), ['create-proof.js', 'inbox.js', 'keystore.js', 'mailcrypto.js', 'refusal.js', 'request.js', 'server.js']);
   for (const file of graph) {
     const src = readFileSync(join(DIST, file), 'utf8').replace(/^\s*\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
     assert.ok(!src.includes('X-Agent-Mail-Owner-Key'), `${file} names the owner header`);
     assert.ok(!src.includes('readOwnerKeyFile'), `${file} names the owner-key reader`);
+    for (const name of ['readSigningKeyFile', 'signBinding', 'answerChallenge', 'generateMailSecret', 'generateSigningSeed', 'MAIL_SIGNING_FILE', 'MAIL_SIGNING_KEY_RE', 'owner-keys']) {
+      if (file === 'keystore.js' && name.startsWith('MAIL_SIGNING')) continue; // defined there, read nowhere in the graph
+      assert.ok(!src.includes(name), `${file} names ${name}`);
+    }
+    assert.ok(!/nacl\.sign\.detached\(|keyPair\.fromSeed|nacl\.box\.keyPair\(\)|randomBytes\(/.test(file === 'keystore.js' || file === 'create-proof.js' ? '' : src), `${file} can make or sign keys`);
   }
+  // keystore.js defines the signing-key file name and shape but never opens that file.
+  const keystore = readFileSync(join(DIST, 'keystore.js'), 'utf8').replace(/^\s*\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
+  assert.equal(keystore.match(/MAIL_SIGNING_FILE/g)?.length, 1, 'keystore.js only defines MAIL_SIGNING_FILE');
+  assert.equal(keystore.match(/MAIL_SIGNING_KEY_RE/g)?.length, 1, 'keystore.js only defines MAIL_SIGNING_KEY_RE');
+  assert.match(readFileSync(join(DIST, 'keystore.js'), 'utf8'), /export function readMailSecretFiles[\s\S]*?MAIL_SECRET_KEY_RE/);
   const server = readFileSync(join(DIST, 'server.js'), 'utf8');
   assert.ok(!/readKeyFileAt|OWNER_KEY_FILE/.test(server), 'server.js must only use readAgentKeyFile');
   // Every API path the server builds is a literal agent-mail path outside /owner.

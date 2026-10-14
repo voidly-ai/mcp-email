@@ -19,3 +19,7 @@ jobs:
           node-version: '20'
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - run: npm test
+      - name: Committed dist matches a build from src
+        run: |
+          git diff --exit-code -- dist
+          test -z "$(git ls-files --others -- dist)"

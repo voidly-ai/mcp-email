@@ -9,6 +9,7 @@ import { join } from 'node:path';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { createVoidmailServer } from '../dist/server.js';
+import { creatorOptions } from './helpers/creator.mjs';
 import { runOwnerCli } from '../dist/owner-cli.js';
 import { validAddress } from '../dist/keystore.js';
 
@@ -19,7 +20,7 @@ const ownerKey = () => 'vmo_SYNTHLEAK' + base62(31);
 const tempRoot = () => mkdtempSync(join(tmpdir(), 'voidmail-adv-'));
 
 async function connect(t, options) {
-  const server = createVoidmailServer(options);
+  const server = createVoidmailServer({ ...creatorOptions(t), ...options });
   const client = new Client({ name: 'adversarial', version: '1' });
   const [left, right] = InMemoryTransport.createLinkedPair();
   await server.connect(left); await client.connect(right);
