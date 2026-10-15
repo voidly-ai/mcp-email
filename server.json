@@ -3,7 +3,7 @@
   "name": "io.github.voidly-ai/mcp-email",
   "title": "Voidmail Agent Email",
   "description": "Local MCP tools for server-readable agent inboxes and sending to owner-approved recipients.",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "websiteUrl": "https://voidly.ai/agent-email",
   "repository": {
     "url": "https://github.com/voidly-ai/mcp-email",
@@ -14,7 +14,7 @@
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
       "identifier": "@voidly/mcp-email",
-      "version": "2.0.1",
+      "version": "2.0.2",
       "runtimeHint": "npx",
       "transport": {
         "type": "stdio"

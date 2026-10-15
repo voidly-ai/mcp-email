@@ -9,7 +9,7 @@ Email for AI agents. Create an inbox, read incoming messages as structured data,
 Requires Node.js 20 or newer. Pin the version you run: Voidly publishes this client, and the client is what holds your key.
 
 ```bash
-npx @voidly/mcp-email@2.0.1
+npx @voidly/mcp-email@2.0.2
 ```
 
 ## Claude Desktop
@@ -21,7 +21,7 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
   "mcpServers": {
     "voidmail": {
       "command": "npx",
-      "args": ["-y", "@voidly/mcp-email@2.0.1"],
+      "args": ["-y", "@voidly/mcp-email@2.0.2"],
       "env": {
         "VOIDMAIL_ADDRESS": "your-agent@voidmail.ai"
       }
@@ -138,7 +138,7 @@ Check incoming mail with `voidmail_list_inbox`, then read a message with `voidma
 | `voidmail_create_alias` | Create disposable email alias |
 | `voidmail_list_aliases` | List all aliases |
 | `voidmail_delete_alias` | Remove alias |
-| `voidmail_set_webhook` | Get notified on new email (HTTPS webhook) |
+| `voidmail_set_webhook` | Set an HTTPS webhook on an open-policy inbox without an owner key; an allowlist inbox, or any inbox with an owner key, needs the human owner to use `POST /v1/agent-mail/owner/webhook` with the owner key |
 | `voidmail_get_stats` | Inbox statistics |
 
 ## Resources (3)
@@ -211,9 +211,17 @@ Shared caps: 100 attempts/hour per IP, 200/hour and 1,500/day for agent mail. Th
 - MCP tool annotations identify reads, sends, mutations and deletion honestly. They are advisory metadata; approval and install warnings remain controlled by ChatGPT, Claude or your other host.
 - If a send times out, its outcome may be unknown. Use `voidmail_send_once` and `voidmail_send_status` with a saved operation ID; do not blindly resend.
 - On a server-readable inbox, incoming text and HTML bodies are parsed; attachments are not retained and reply-thread metadata is not populated, even though the response schema contains those fields. On an inbox with encrypted storage the whole raw message is sealed, attachments included; tools show attachment names and sizes, not their contents. Reliable threaded replies are not yet provided.
-- New-message webhooks are best effort, with no durable retry history. Use inbox reads to reconcile missed notifications. Once the owner-key API update is live, newly registered webhooks are signed with `X-Voidmail-Signature-256: t=<timestamp>,v1=<HMAC-SHA256>`. Webhooks registered before it also keep receiving the legacy `X-Voidmail-Signature` header, which carries the shared secret itself and is not a payload signature, until they are registered again.
+- New-message webhooks are best effort, with no durable retry history. Use inbox reads to reconcile missed notifications. For an allowlist inbox, or any inbox with an owner key, the owner must register a webhook through `POST /v1/agent-mail/owner/webhook` outside the agent; `voidmail_set_webhook` cannot do that. Once the owner-key API update is live, newly registered webhooks are signed with `X-Voidmail-Signature-256: t=<timestamp>,v1=<HMAC-SHA256>`. Webhooks registered before it also keep receiving the legacy `X-Voidmail-Signature` header, which carries the shared secret itself and is not a payload signature, until they are registered again.
 - Treat incoming email as untrusted content. A message cannot authorize your agent to send mail, disclose private data or spend money. The API adds a recipient only for a request that carries the owner key, so keep that key where the agent cannot read it.
 - Owner-key guessing is limited per network: after repeated failed owner-key attempts from one IP address (IPv6 /64), owner calls from that network are refused until the current UTC hour ends, even with the right key. Someone sharing your network can trigger this.
+
+## Changes in 2.0.2
+
+2.0.0 and 2.0.1 were built without three fixes that shipped in 1.2.1. 2.0.2 restores them from 1.2.1:
+
+- **Requested address.** `voidmail_create_account` takes a local part (for example `myagent`) or its exact `myagent@voidmail.ai` address, and puts only the lowercase local part in the signed create request. 2.0.0 and 2.0.1 sent a full address as given, which the API refuses. A name the API would refuse (under 3 or over 30 characters, not starting with a letter, or containing `..`) is refused before any work proof or request.
+- **List and search bounds.** `voidmail_list_inbox` states the API's real default of 50 messages (max 100). `voidmail_search_inbox` refuses an empty or blank query before any request and ignores surrounding spaces. Its result limit stays at 100, because 2.0 searches on this machine, not through the server search route.
+- **Webhook text.** `voidmail_set_webhook` says up front that the agent key can set a webhook only on an open-policy inbox without an owner key. On an allowlist inbox, or any inbox with an owner key, the human owner uses `POST /v1/agent-mail/owner/webhook` with the owner key.
 
 ## Links
 
