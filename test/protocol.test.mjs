@@ -4,7 +4,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { createVoidmailServer } from '../dist/server.js';
 import { requestJson } from '../dist/request.js';
-import { mkdtempSync } from 'node:fs';
+import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { creatorOptions } from './helpers/creator.mjs';
@@ -12,17 +12,18 @@ import { creatorOptions } from './helpers/creator.mjs';
 const syntheticKey = 'vm_' + 'a'.repeat(64);
 async function fixture(t, fetcher, apiKey = syntheticKey) {
   // Key files go to a throwaway directory, never the real home directory.
-  const server = createVoidmailServer({ fetch: fetcher, apiKey, keyRoot: mkdtempSync(join(tmpdir(), 'voidmail-protocol-')), ...creatorOptions(t) });
+  const keyRoot = mkdtempSync(join(tmpdir(), 'voidmail-protocol-'));
+  const server = createVoidmailServer({ fetch: fetcher, apiKey, keyRoot, ...creatorOptions(t) });
   const client = new Client({ name: 'synthetic-email-check', version: '1' });
   const [left, right] = InMemoryTransport.createLinkedPair();
   await server.connect(left); await client.connect(right);
-  t.after(async () => { await client.close(); await server.close(); });
+  t.after(async () => { await client.close(); await server.close(); rmSync(keyRoot, { recursive: true, force: true }); });
   return client;
 }
 
 test('protocol inventories 19 tools and 3 resources with truthful side-effect hints', async t => {
   const client = await fixture(t, () => { throw new Error('No network expected'); });
-  assert.equal(client.getServerVersion().version, '2.0.1');
+  assert.equal(client.getServerVersion().version, '2.0.2');
   const { tools } = await client.listTools(); assert.equal(tools.length, 19);
   const byName = Object.fromEntries(tools.map(x => [x.name, x]));
   assert.equal(byName.voidmail_account_info.annotations.readOnlyHint, true);
@@ -33,7 +34,54 @@ test('protocol inventories 19 tools and 3 resources with truthful side-effect hi
   for (const name of ['delete_email', 'delete_alias', 'set_webhook', 'revoke_recipient']) assert.equal(byName['voidmail_' + name].annotations.destructiveHint, true);
   assert.equal(byName.voidmail_policy.annotations.readOnlyHint, true);
   assert.equal(byName.voidmail_request_recipient.annotations.readOnlyHint, false);
+  // Restored from 1.2.1: address, list/search bounds and webhook text.
+  const createAddress = byName.voidmail_create_account.inputSchema.properties.address;
+  assert.match(createAddress.description, /local part/);
+  assert.equal(createAddress.minLength, 3); assert.equal(createAddress.maxLength, 42);
+  const listLimit = byName.voidmail_list_inbox.inputSchema.properties.limit;
+  assert.equal(listLimit.maximum, 100); assert.match(listLimit.description, /default 50/);
+  const search = byName.voidmail_search_inbox.inputSchema.properties;
+  assert.equal(search.query.minLength, 1); assert.match(search.query.description, /Nonempty/);
+  // 2.0 searches on this machine, so the server search route's 50 cap does not apply.
+  assert.equal(search.limit.maximum, 100); assert.match(search.limit.description, /default 20/);
+  assert.match(byName.voidmail_set_webhook.description, /allowlist inbox.*owner\/webhook.*owner key/);
+  assert.match(byName.voidmail_set_webhook.description, /no owner key/);
+  assert.match(byName.voidmail_send_email.description, /Legacy send.*Prefer voidmail_send_once/);
+  assert.match(byName.voidmail_send_once.description, /Preferred send/);
   assert.equal((await client.listResources()).resources.length, 3);
+});
+
+test('create accepts its own full address but sends only a local part to the API', async t => {
+  const calls = [];
+  const client = await fixture(t, async (url, init) => {
+    calls.push({ url, init });
+    return Response.json({ address: 'contractcase@voidmail.ai', api_key: 'vm_' + 'b'.repeat(64), owner_key: 'vmo_' + 'A'.repeat(40), recipient_policy: 'allowlist' }, { status: 201 });
+  }, null);
+  for (const address of ['', 'ab', 'a..b', '123abc', 'contractcase@example.com', 'contractcase@voidmail.ai.example', 'a'.repeat(31)]) {
+    const result = await client.callTool({ name: 'voidmail_create_account', arguments: { address } });
+    assert.equal(result.isError, true, address);
+  }
+  assert.equal(calls.length, 0);
+  const result = await client.callTool({ name: 'voidmail_create_account', arguments: { address: ' CONTRACTCASE@VOIDMAIL.AI ' } });
+  assert.notEqual(result.isError, true, result.content?.[0]?.text);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].url, 'https://api.voidly.ai/v1/agent-mail/create');
+  // The signed body is the transmitted body: only the lowercase local part goes to the API.
+  assert.deepEqual(JSON.parse(calls[0].init.body), { name: 'agent', address: 'contractcase', recipient_policy: 'allowlist' });
+  assert.equal(JSON.parse(result.content[0].text).address, 'contractcase@voidmail.ai');
+  assert.doesNotMatch(JSON.stringify(result), /vm_bbbb|vmo_AAAA/);
+});
+
+test('create sends a bare local part unchanged and omits address when none is requested', async t => {
+  const bodies = [];
+  let n = 0;
+  const client = await fixture(t, async (_url, init) => {
+    bodies.push(JSON.parse(init.body)); n++;
+    return Response.json({ address: `fixture${n}@voidmail.ai`, api_key: 'vm_' + String(n).repeat(64), owner_key: 'vmo_' + 'C'.repeat(39) + n, recipient_policy: 'allowlist' }, { status: 201 });
+  }, null);
+  assert.notEqual((await client.callTool({ name: 'voidmail_create_account', arguments: { address: 'my.agent-1' } })).isError, true);
+  assert.notEqual((await client.callTool({ name: 'voidmail_create_account', arguments: {} })).isError, true);
+  assert.deepEqual(bodies, [{ name: 'agent', address: 'my.agent-1', recipient_policy: 'allowlist' }, { name: 'agent', recipient_policy: 'allowlist' }]);
 });
 
 test('send is a single authenticated request, acceptance is retained as returned', async t => {
@@ -74,13 +122,23 @@ test('path IDs cannot add query parameters or escape the inbox path', async t =>
 });
 
 test('invalid pagination never reaches the API', async t => {
-  let calls = 0;
-  const client = await fixture(t, async () => { calls++; return Response.json({}); });
+  const calls = [];
+  const client = await fixture(t, async url => { calls.push(url); return Response.json({ emails: [], total: 0 }); });
   for (const limit of [-1, 0, 101, 1.5]) {
     const result = await client.callTool({name:'voidmail_list_inbox',arguments:{limit}});
     assert.equal(result.isError, true);
   }
-  assert.equal(calls, 0);
+  for (const args of [{ query: 'invoice', limit: 0 }, { query: 'invoice', limit: 101 }, { query: 'invoice', limit: 1.5 }, { query: '' }, { query: '   ' }]) {
+    const result = await client.callTool({ name: 'voidmail_search_inbox', arguments: args });
+    assert.equal(result.isError, true, JSON.stringify(args));
+  }
+  assert.equal(calls.length, 0);
+  // A padded query is trimmed and searched on this machine through the inbox list route.
+  const result = await client.callTool({ name: 'voidmail_search_inbox', arguments: { query: ' invoice ', limit: 100 } });
+  assert.notEqual(result.isError, true, result.content?.[0]?.text);
+  assert.equal(JSON.parse(result.content[0].text).query, 'invoice');
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0], 'https://api.voidly.ai/v1/agent-mail/inbox?limit=10&offset=0');
 });
 
 test('deadline aborts one pending request without a retry', async () => {

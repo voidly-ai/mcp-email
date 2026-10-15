@@ -1,6 +1,6 @@
 {
   "name": "@voidly/mcp-email",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "mcpName": "io.github.voidly-ai/mcp-email",
   "description": "MCP server for agent email: @voidmail.ai inboxes with owner-approved sending and optional encrypted storage. Keys are made and mail is decrypted on your machine; incoming mail is plaintext to the server while it is received, and outside email is not end-to-end encrypted.",
   "type": "module",
