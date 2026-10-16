@@ -21,16 +21,24 @@ async function fixture(t, fetcher, apiKey = syntheticKey) {
   return client;
 }
 
-test('protocol inventories 19 tools and 3 resources with truthful side-effect hints', async t => {
+test('protocol inventories 21 tools and 3 resources with truthful side-effect hints', async t => {
   const client = await fixture(t, () => { throw new Error('No network expected'); });
-  assert.equal(client.getServerVersion().version, '2.0.2');
-  const { tools } = await client.listTools(); assert.equal(tools.length, 19);
+  assert.equal(client.getServerVersion().version, '2.1.0');
+  const { tools } = await client.listTools(); assert.equal(tools.length, 21);
   const byName = Object.fromEntries(tools.map(x => [x.name, x]));
   assert.equal(byName.voidmail_account_info.annotations.readOnlyHint, true);
   assert.equal(byName.voidmail_read_email.annotations.readOnlyHint, false);
   assert.equal(byName.voidmail_send_email.annotations.readOnlyHint, false);
   assert.equal(byName.voidmail_send_email.annotations.idempotentHint, false);
   assert.equal(byName.voidmail_create_account.annotations.idempotentHint, false);
+  // 2.1: verification mail tools only read; neither marks mail read nor follows a link.
+  for (const name of ['voidmail_wait_for_email', 'voidmail_extract_code']) {
+    assert.equal(byName[name].annotations.readOnlyHint, true, name);
+    assert.equal(byName[name].annotations.destructiveHint, false, name);
+  }
+  assert.equal(byName.voidmail_wait_for_email.inputSchema.properties.timeout_seconds.maximum, 25);
+  assert.match(byName.voidmail_extract_code.description, /untrusted/);
+  assert.match(byName.voidmail_create_account.description, /Home join/);
   for (const name of ['delete_email', 'delete_alias', 'set_webhook', 'revoke_recipient']) assert.equal(byName['voidmail_' + name].annotations.destructiveHint, true);
   assert.equal(byName.voidmail_policy.annotations.readOnlyHint, true);
   assert.equal(byName.voidmail_request_recipient.annotations.readOnlyHint, false);

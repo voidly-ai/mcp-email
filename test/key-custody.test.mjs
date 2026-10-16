@@ -27,6 +27,7 @@ const ARGS = {
   voidmail_create_account: {},
   voidmail_account_info: {}, voidmail_list_inbox: {}, voidmail_read_email: { email_id: 'm1' },
   voidmail_search_inbox: { query: 'invoice' }, voidmail_sending_limits: {},
+  voidmail_wait_for_email: { timeout_seconds: 1 }, voidmail_extract_code: {},
   voidmail_send_email: { to: 'one@example.invalid', subject: 'Synthetic', text: 'Not sent' },
   voidmail_send_once: { operationId: 'synthetic_operation_0001', to: 'one@example.invalid', subject: 'Synthetic' },
   voidmail_send_status: { operationId: 'synthetic_operation_0001' },
@@ -49,6 +50,9 @@ function leakyApi(mode, calls) {
     if (mode === 'refuse') return Response.json({ error: 'recipient_not_authorized', code: 'RECIPIENT_NOT_AUTHORIZED', send_attempted: false,
       request: { id: 'req_1', status: 'pending', expires_at: '2026-10-01T00:00:00Z' }, recovery: `${MARK} ${OWNER_KEY}`, ...leak }, { status: 403 });
     if (mode === 'error') return Response.json(leak, { status: 500 });
+    // Inbox pages carry both keys inside a message, as hostile inbound mail could.
+    if (url.includes('/v1/agent-mail/inbox?')) return Response.json({ ...leak, emails: [{ id: 'm1', from_address: 'sender@example.invalid',
+      subject: 'Your verification code', received_at: '2026-10-07 16:00:00', body_text: `Your verification code is 123456. ${AGENT_KEY} ${OWNER_KEY}` }] });
     const body = init.body ? JSON.parse(init.body) : {};
     const operationId = body.operationId ?? decodeURIComponent(url.split('/').pop());
     return Response.json({ operationId, status: 'accepted', messageId: 'provider-id', automatic_retry: false, request: { id: 'req_1', status: 'pending' }, ...leak },
@@ -216,9 +220,10 @@ test('static: the MCP server module graph has no owner-key reader, owner header 
     for (const m of src.matchAll(/from\s+'\.\/([\w-]+\.js)'/g)) pending.push(m[1]);
     for (const m of src.matchAll(/import\('\.\/([\w-]+\.js)'\)/g)) pending.push(m[1]);
   }
-  // The creator signer makes a request proof with an enrolled agent identity.
-  // The inbox mail-key signer / registrar (owner-keys.js) stays outside the MCP server.
-  assert.deepEqual([...graph].sort(), ['create-proof.js', 'inbox.js', 'keystore.js', 'mailcrypto.js', 'refusal.js', 'request.js', 'server.js']);
+  // The creator signer makes a request proof with an enrolled agent identity; creator.js may
+  // enroll a dedicated creator identity (2.1). The inbox mail-key signer / registrar
+  // (owner-keys.js) stays outside the MCP server.
+  assert.deepEqual([...graph].sort(), ['create-inbox.js', 'create-proof.js', 'creator.js', 'inbox.js', 'keystore.js', 'mailcrypto.js', 'refusal.js', 'request.js', 'server.js']);
   for (const file of graph) {
     const src = readFileSync(join(DIST, file), 'utf8').replace(/^\s*\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
     assert.ok(!src.includes('X-Agent-Mail-Owner-Key'), `${file} names the owner header`);
@@ -227,8 +232,12 @@ test('static: the MCP server module graph has no owner-key reader, owner header 
       if (file === 'keystore.js' && name.startsWith('MAIL_SIGNING')) continue; // defined there, read nowhere in the graph
       assert.ok(!src.includes(name), `${file} names ${name}`);
     }
-    assert.ok(!/nacl\.sign\.detached\(|keyPair\.fromSeed|nacl\.box\.keyPair\(\)|randomBytes\(/.test(file === 'keystore.js' || file === 'create-proof.js' ? '' : src), `${file} can make or sign keys`);
+    assert.ok(!/nacl\.sign\.detached\(|keyPair\.fromSeed|nacl\.box\.keyPair\(\)|randomBytes\(/.test(['keystore.js', 'create-proof.js', 'creator.js'].includes(file) ? '' : src), `${file} can make or sign keys`);
   }
+  // The creator identity module talks only to the Home join route, never to a mailbox or owner route.
+  const creator = readFileSync(join(DIST, 'creator.js'), 'utf8').replace(/^\s*\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
+  assert.deepEqual([...creator.matchAll(/['`](\/v1\/[^'`$?]*)/g)].map(m => m[1]), ['/v1/home/join']);
+  assert.ok(!/agent-mail|X-Agent-Mail/.test(creator), 'creator.js names a mailbox route or header');
   // keystore.js defines the signing-key file name and shape but never opens that file.
   const keystore = readFileSync(join(DIST, 'keystore.js'), 'utf8').replace(/^\s*\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
   assert.equal(keystore.match(/MAIL_SIGNING_FILE/g)?.length, 1, 'keystore.js only defines MAIL_SIGNING_FILE');
@@ -242,4 +251,6 @@ test('static: the MCP server module graph has no owner-key reader, owner header 
   const index = readFileSync(join(DIST, 'index.js'), 'utf8');
   assert.ok(!/^import .*owner-cli/m.test(index));
   assert.match(index, /if \(process\.argv\[2\] === 'owner'\) \{\s*const \{ runOwnerCli \} = await import\('\.\/owner-cli\.js'\)/);
+  assert.match(index, /else if \(process\.argv\[2\] === 'create'\) \{\s*const \{ runCreateCli \} = await import\('\.\/create-cli\.js'\)/);
+  assert.ok(!/^import .*create-cli/m.test(index));
 });

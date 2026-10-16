@@ -33,7 +33,7 @@ jobs:
             .packages[0].registryType == "npm" and
             .packages[0].registryBaseUrl == "https://registry.npmjs.org" and
             .packages[0].identifier == "@voidly/mcp-email" and
-            .packages[0].version == "2.0.2" and
+            .packages[0].version == "2.1.0" and
             .packages[0].transport.type == "stdio" and
             (((.remotes // []) | length) == 0 or
               (((.remotes // []) | length) == 1 and
@@ -50,7 +50,7 @@ jobs:
           curl -fsSL "https://registry.npmjs.org/%40voidly%2Fmcp-email/${package_version}" \
             | jq -e '
                 .name == "@voidly/mcp-email" and
-                .version == "2.0.2" and
+                .version == "2.1.0" and
                 .mcpName == "io.github.voidly-ai/mcp-email"
               ' >/dev/null
 

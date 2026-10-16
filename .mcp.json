@@ -5,7 +5,7 @@
       "command": "npx",
       "args": [
         "-y",
-        "@voidly/mcp-email@2.0.2"
+        "@voidly/mcp-email@2.1.0"
       ]
     },
     "voidmail-hosted": {
