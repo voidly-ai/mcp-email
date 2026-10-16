@@ -209,6 +209,48 @@ export function presentList(data: unknown, ctx: InboxContext) {
   });
 }
 
+/** Presented rows, newest first, for the wait and extract tools (sealed rows opened from their summary). */
+export function presentRows(rows: unknown[], ctx: InboxContext): Promise<unknown[]> {
+  return withKeys(ctx, async loaded => {
+    const out: unknown[] = [];
+    for (const row of rows) out.push(await presentWith(row, ctx, 'list', loaded));
+    return out;
+  });
+}
+
+export interface MessageMeta {
+  id: string; from: string | null; subject: string; received_at: string | null; receivedMs: number | null;
+  storage: 'sealed' | 'server-readable'; readable: boolean;
+}
+
+/** Sender, subject and arrival time of one presented row; null for a row without an id. An unreadable sealed row has no sender or subject. */
+export function messageMeta(row: unknown): MessageMeta | null {
+  if (!isObject(row) || typeof row.id !== 'string' || !row.id) return null;
+  const at = { received_at: str(row.received_at, 40), receivedMs: parseTime(row.received_at) };
+  if (row.storage === 'sealed') {
+    const readable = row.readable === true;
+    const from = readable && isObject(row.from) && typeof row.from.address === 'string' ? row.from.address : null;
+    return { id: row.id, from, subject: readable && typeof row.subject === 'string' ? row.subject : '', ...at, storage: 'sealed', readable };
+  }
+  return { id: row.id, from: str(row.from_address, 254), subject: str(row.subject, 998) ?? '', ...at, storage: 'server-readable', readable: true };
+}
+
+/**
+ * The plain text of one listed message, for code extraction: a server-readable row's stored
+ * text, or a sealed body downloaded and opened here (its authenticated summary snippet when the
+ * body cannot be fetched). Never HTML or attachments; nothing is marked read.
+ */
+export function messageText(raw: unknown, ctx: InboxContext): Promise<string | null> {
+  return withKeys(ctx, async loaded => {
+    if (!isObject(raw)) return null;
+    if (!isSealedRow(raw)) return typeof raw.body_text === 'string' ? raw.body_text : null;
+    const full = await presentSealed(raw, loaded, ctx, 'search-body') as Record<string, unknown>;
+    if (full.readable !== true) return null;
+    if (typeof full.text === 'string') return full.text;
+    return typeof full.text_preview === 'string' ? full.text_preview : null;
+  });
+}
+
 /** Said once per list instead of on every row. */
 const STORAGE_NOTES = { sealed: SEALED_NOTE, 'server-readable': SERVER_READABLE_NOTE };
 

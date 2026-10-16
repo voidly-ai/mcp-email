@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 // `voidly-mcp-email`            → the MCP server (agent key only)
+// `voidly-mcp-email create ...` → make one inbox from a terminal; prints paths, never keys
 // `voidly-mcp-email owner ...`  → the human owner CLI (owner key; `owner keys` also makes,
 //                                 signs and registers the mailbox's mail encryption keys)
-// The two paths load different modules, so the MCP server process never loads
+// The paths load different modules, so the MCP server process never loads
 // the owner-key reader, the inbox mail-signing-key reader or anything that can
 // register/change an inbox key. Create reads a separate agent identity signer.
 import { join } from 'node:path';
@@ -10,6 +11,9 @@ import { join } from 'node:path';
 if (process.argv[2] === 'owner') {
   const { runOwnerCli } = await import('./owner-cli.js');
   process.exitCode = await runOwnerCli(process.argv.slice(3));
+} else if (process.argv[2] === 'create') {
+  const { runCreateCli } = await import('./create-cli.js');
+  process.exitCode = await runCreateCli(process.argv.slice(3));
 } else {
   const { StdioServerTransport } = await import('@modelcontextprotocol/sdk/server/stdio.js');
   const { createVoidmailServer } = await import('./server.js');
@@ -21,6 +25,7 @@ if (process.argv[2] === 'owner') {
     apiKey: env.VOIDMAIL_API_KEY || null, agentKeyFile, address, keyRoot: keyRoot(env),
     creatorDid: env.VOIDMAIL_CREATOR_DID || null,
     creatorSigningKeyFile: env.VOIDMAIL_CREATOR_SIGNING_KEY_FILE || null,
+    autoEnrollCreator: !/^(0|off|false|no)$/i.test((env.VOIDMAIL_CREATOR_AUTO_ENROLL ?? '').trim()),
   });
   server.connect(new StdioServerTransport()).catch(() => {
     console.error('Voidmail MCP transport could not start.');

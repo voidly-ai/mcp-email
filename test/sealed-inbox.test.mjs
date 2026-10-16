@@ -215,7 +215,8 @@ test('no MCP tool can register or change a key', async t => {
   const args = { voidmail_read_email: { email_id: 'em_x' }, voidmail_search_inbox: { query: 'x' }, voidmail_send_email: { to: 'a@example.invalid', subject: 's' },
     voidmail_send_once: { operationId: 'synthetic_operation_0001', to: 'a@example.invalid', subject: 's' }, voidmail_send_status: { operationId: 'synthetic_operation_0001' },
     voidmail_mark_read: { email_id: 'em_x' }, voidmail_delete_email: { email_id: 'em_x' }, voidmail_delete_alias: { alias: 'x1' },
-    voidmail_set_webhook: { url: 'https://example.invalid/h' }, voidmail_request_recipient: { recipient: 'a@example.invalid' }, voidmail_revoke_recipient: { pattern: '@example.invalid' } };
+    voidmail_set_webhook: { url: 'https://example.invalid/h' }, voidmail_request_recipient: { recipient: 'a@example.invalid' }, voidmail_revoke_recipient: { pattern: '@example.invalid' },
+    voidmail_wait_for_email: { timeout_seconds: 1 } };
   const before = api.state.calls.length;
   for (const x of tools) if (x.name !== 'voidmail_create_account') await client.callTool({ name: x.name, arguments: args[x.name] ?? {} }).catch(() => {});
   const mcp = api.state.calls.slice(before);

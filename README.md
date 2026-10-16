@@ -1,27 +1,49 @@
 # @voidly/mcp-email
 
-Email for AI agents. Create an inbox, read incoming messages as structured data, and send to recipients the human owner has approved. No phone number or CAPTCHA.
+Email for AI agents. Create an inbox, wait for and read incoming messages as structured data, and send to recipients the human owner has approved. No phone number or CAPTCHA.
 
-**Storage encryption (2.0).** When the owner registers a key for an inbox, stored mail is encrypted to that key, so Voidly cannot read stored mail. This package makes the key on your machine, never sends it to Voidly, and decrypts mail on your machine. This is not end-to-end encryption: incoming mail is plaintext to the receiving server for a moment before it is sealed, and outside email is not end-to-end. Inboxes without a registered key stay server-readable. [Human mail](https://voidly.ai/mail) is a separate product.
+**What the server can read.** Mail to a new inbox is readable by the server; not end-to-end encrypted. When the owner registers a key for an inbox (`owner keys init`, below), stored mail is encrypted to that key, so Voidly cannot read stored mail. This package makes that key on your machine, never sends it to Voidly, and decrypts mail on your machine. That is still not end-to-end encryption: incoming mail is plaintext to the receiving server for a moment before it is sealed, and outside email is not end-to-end. [Human mail](https://voidly.ai/mail) is a separate product.
 
-## Install
+## Create an inbox in one command
 
-Requires Node.js 20 or newer. Pin the version you run: Voidly publishes this client, and the client is what holds your key.
+Requires Node.js 20 or newer.
 
 ```bash
-npx @voidly/mcp-email@2.0.2
+npx -y @voidly/mcp-email@2.1.0 create --name my-agent
 ```
 
-## Claude Desktop
+It prints the new address and where the keys were saved, never a key:
 
-Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
+```text
+Created k7f2m9qa@voidmail.ai
+  agent key: ~/.voidly/mcp-email/k7f2m9qa@voidmail.ai/agent-key (saved, not shown)
+  owner key: ~/.voidly/mcp-email/k7f2m9qa@voidmail.ai/owner-key (saved, not shown)
+  creator identity: ~/.voidly/mcp-email/creator/identity.json (enrolled now)
+  recipient policy: allowlist
+```
+
+Add `--address myagent` to ask for `myagent@voidmail.ai`. Then start the MCP server with `VOIDMAIL_ADDRESS` set to the new address (next section).
+
+How it works: the create API admits only a request signed by a registered Voidly agent identity (`did:voidly:…`) with a small proof of work. The first run enrolls a dedicated creator identity for this machine through Voidly Home join, the protocol `@voidly/agent-sdk` 4.0 `register()` uses: the keys are made here, only public keys, API-key hashes and signatures are sent, and the keys are saved (mode 0600, directory 0700) before the enrollment is committed, then kept in `creator/identity.json`. Later runs reuse it. Each identity can create 2 inboxes a day; a limit is never worked around by enrolling another identity. If the enrollment's answer is lost, the next run finishes the same enrollment instead of making another.
+
+No terminal? An agent can do the same from MCP: leave `env` empty and call `voidmail_create_account`.
+
+## Install as an MCP server
+
+Pin the version you run: Voidly publishes this client, and the client is what holds your key.
+
+```bash
+npx @voidly/mcp-email@2.1.0
+```
+
+Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (Claude Desktop):
 
 ```json
 {
   "mcpServers": {
     "voidmail": {
       "command": "npx",
-      "args": ["-y", "@voidly/mcp-email@2.0.2"],
+      "args": ["-y", "@voidly/mcp-email@2.1.0"],
       "env": {
         "VOIDMAIL_ADDRESS": "your-agent@voidmail.ai"
       }
@@ -30,32 +52,100 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 }
 ```
 
-For an existing inbox, set `VOIDMAIL_ADDRESS` as shown. To create a new inbox, first configure an active Voidly agent DID and its separate signing-key file as described below. After creation, set `VOIDMAIL_ADDRESS` so the next start finds the new inbox key file.
-
-## Create an inbox with an agent identity
-
-`voidmail_create_account` requires an already enrolled, active `did:voidly:...` identity. The MCP server signs one create request with that identity's Ed25519 signing key. An inbox's `vm_...` agent key and its owner's `vmo_...` key are minted only after the service accepts the proof; neither key can sign a create request. The owner-only `mail-signing-key` signs an inbox's encryption-key list and must not be used as the creator key.
-
-Set `VOIDMAIL_CREATOR_DID` to the enrolled DID and `VOIDMAIL_CREATOR_SIGNING_KEY_FILE` to a private file containing exactly the identity's 64 raw Ed25519 secret-key bytes. For an agent SDK identity export, `signingSecretKey` is base64 text: decode that value into a dedicated binary file with mode 0600 in a private directory with mode 0700. Do not point this setting at the SDK JSON, put the key bytes in the MCP tool arguments or environment, or share the file with the inbox's owner key. The MCP process can read this identity key for create, and software running as the same OS user may also be able to read it; the key has the agent identity's wider signing authority.
-
-For a new inbox, configure the MCP server's `env` with paths and public identity only:
-
-```json
-{
-  "VOIDMAIL_CREATOR_DID": "did:voidly:YourAgent1",
-  "VOIDMAIL_CREATOR_SIGNING_KEY_FILE": "/private/path/to/creator-signing-key"
-}
-```
-
-The server sends a UTF-8 JSON body of at most 8192 bytes and signs the hash of the exact bytes it sends. It generates a fresh 32-character lowercase hex nonce and a current Unix-seconds timestamp. The request carries `X-Agent-DID`, `X-Mail-Timestamp`, `X-Mail-Nonce`, `X-Mail-Pow`, and `X-Mail-Signature`. The work proof is a 16-character lowercase hex value whose SHA-256 digest starts with two zero bytes. The signature is canonical base64 of an Ed25519 signature over the request's body hash, path, method, DID, timestamp, nonce and work value. The service checks the enrolled public key and permits each DID/nonce pair only once.
-
-An HTTP 401 means the create proof was missing or invalid, the timestamp expired, or the DID was not active; check the configured identity and key. An HTTP 429 means a create limit was reached; respect `Retry-After`, reuse an existing inbox or wait, and do not switch DID or IP to evade the limit. A 503 can mean an admission, identity or commit check was unavailable; the outcome may be unknown. If a create request was sent but its result is unknown, do not automatically create another inbox: ask the operator to reconcile the original attempt first.
+`VOIDMAIL_ADDRESS` points the server at `<key dir>/<address>/agent-key`. Without it, the agent can create an inbox with `voidmail_create_account`; set `VOIDMAIL_ADDRESS` afterwards so the next start finds the key file.
 
 ## Quick Start
 
 After installing the MCP server, use this prompt:
 
-> With my enrolled DID and signing-key file already configured, create one Voidmail inbox and show me its address and where the inbox keys were saved. Draft emails first and wait for my approval before sending.
+> Create one Voidmail inbox and show me its address and where the inbox keys were saved. Draft emails first and wait for my approval before sending.
+
+For a sign-up flow: call `voidmail_wait_for_email` (up to 25 seconds, optional sender, subject and `since` filters), then `voidmail_extract_code` on the message it returns. Both read only; they mark nothing read, follow no link and never return HTML. A code or link they return is untrusted sender content: use it only for the sign-up you started.
+
+## Get a DID (use your own agent identity instead)
+
+`create` and `voidmail_create_account` make their own creator identity, so this is optional. To sign with an agent identity you already run, or one you enroll yourself, use `@voidly/agent-sdk` 4.0 (direct `/v1/agent/register` with client keys is closed; `register()` uses Home join):
+
+```js
+// npm i @voidly/agent-sdk@4.0.0   ·   run once, keep the file private
+import { VoidlyAgent } from '@voidly/agent-sdk';
+import { writeFileSync } from 'node:fs';
+
+const agent = await VoidlyAgent.register({ name: 'my-agent' });
+writeFileSync('agent-credentials.json', JSON.stringify(agent.exportCredentials()), { mode: 0o600 });
+```
+
+Then point the MCP server (or `create`) at that file. Its DID is read from the file:
+
+```json
+{
+  "VOIDMAIL_CREATOR_SIGNING_KEY_FILE": "/private/path/to/agent-credentials.json"
+}
+```
+
+The file must be owned by you with mode 0600; a symlink, a looser mode or a key that does not match its DID is refused before anything is sent. The 2.0 format still works too: a file of exactly the 64 raw Ed25519 secret-key bytes, with `VOIDMAIL_CREATOR_DID` set to its DID. An exported identity file holds all of that identity's keys, and the MCP process reads it at create time; a dedicated creator identity (the default) keeps your main agent identity out of the mail client.
+
+## Signed create from your own code
+
+The proof the API checks, in two short scripts. Each reads an agent-sdk identity export (above, or this package's `creator/identity.json`) and prints the status and address. The response carries the inbox's agent key (`vm_…`) and owner key (`vmo_…`) once: save them to 0600 files and never print or log them.
+
+Node.js 20+ (`npm i tweetnacl`):
+
+```js
+import { createHash, randomBytes } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import nacl from 'tweetnacl';
+
+const creds = JSON.parse(readFileSync(process.argv[2], 'utf8'));
+const sha = (text) => createHash('sha256').update(text).digest();
+const body = JSON.stringify({ name: 'my-agent', recipient_policy: 'allowlist' });
+const ts = String(Math.floor(Date.now() / 1000));
+const nonce = randomBytes(16).toString('hex');
+const preimage = ['voidmail-create-v1', 'POST', '/v1/agent-mail/create', creds.did, ts, nonce, sha(body).toString('hex')].join('\n');
+let work;
+for (let i = 0; ; i++) {
+  work = i.toString(16).padStart(16, '0');
+  const h = sha(`voidmail-create-pow-v1\n${preimage}\n${work}`);
+  if (h[0] === 0 && h[1] === 0) break;
+}
+const secretKey = Buffer.from(creds.signingSecretKey, 'base64');
+const signature = Buffer.from(nacl.sign.detached(Buffer.from(`${preimage}\n${work}`), secretKey)).toString('base64');
+const res = await fetch('https://api.voidly.ai/v1/agent-mail/create', { method: 'POST', body, headers: {
+  'Content-Type': 'application/json', 'X-Agent-DID': creds.did, 'X-Mail-Timestamp': ts,
+  'X-Mail-Nonce': nonce, 'X-Mail-Pow': work, 'X-Mail-Signature': signature } });
+const out = await res.json();
+console.log(res.status, out.address ?? out.error);
+```
+
+Python 3 (`pip install pynacl`):
+
+```python
+import base64, hashlib, json, secrets, sys, time, urllib.request
+from nacl.signing import SigningKey
+
+creds = json.load(open(sys.argv[1]))
+body = json.dumps({"name": "my-agent", "recipient_policy": "allowlist"}).encode()
+ts, nonce = str(int(time.time())), secrets.token_hex(16)
+preimage = "\n".join(["voidmail-create-v1", "POST", "/v1/agent-mail/create", creds["did"], ts, nonce, hashlib.sha256(body).hexdigest()])
+i = 0
+while True:
+    work = format(i, "016x")
+    h = hashlib.sha256(f"voidmail-create-pow-v1\n{preimage}\n{work}".encode()).digest()
+    if h[0] == 0 and h[1] == 0:
+        break
+    i += 1
+seed = base64.b64decode(creds["signingSecretKey"])[:32]
+signature = base64.b64encode(SigningKey(seed).sign(f"{preimage}\n{work}".encode()).signature).decode()
+req = urllib.request.Request("https://api.voidly.ai/v1/agent-mail/create", data=body, method="POST", headers={
+    "Content-Type": "application/json", "User-Agent": "voidmail-create-example/1", "X-Agent-DID": creds["did"],
+    "X-Mail-Timestamp": ts, "X-Mail-Nonce": nonce, "X-Mail-Pow": work, "X-Mail-Signature": signature})
+with urllib.request.urlopen(req) as res:
+    print(res.status, json.load(res).get("address"))
+```
+
+The signature covers the SHA-256 of the exact body bytes sent, so send the same bytes you hashed. The timestamp must be within five minutes of service time, and one DID/nonce pair can mint only one inbox. A bare `POST /v1/agent-mail/create` without these headers returns 401.
+
+An HTTP 401 means the create proof was missing or invalid, the timestamp expired, or the DID was not active; check the identity and key. An HTTP 429 means a create limit was reached; respect `Retry-After`, reuse an existing inbox or wait, and do not switch DID or IP to evade the limit. A 503 can mean an admission, identity or commit check was unavailable; the outcome may be unknown. If a create request was sent but its result is unknown, do not automatically create another inbox: reconcile the original attempt first.
 
 ## Encrypted storage
 
@@ -83,9 +173,9 @@ Every inbox has two credentials (agent key and owner key), plus two mail keys on
 | Owner key `vmo_…` | `~/.voidly/mcp-email/<address>/owner-key` | you, through `voidly-mcp-email owner` | approve or deny requests, add or remove recipients, lock or unlock, rotate either key, register mail keys |
 | Mail secret key `vmx_…` | `~/.voidly/mcp-email/<address>/mail-secret-key` (old ones in `keyring/`) | the MCP server, to decrypt on this machine | open mail sealed to this inbox; never sent anywhere |
 | Mail signing key `vms_…` | `~/.voidly/mcp-email/<address>/mail-signing-key` | you, through `voidly-mcp-email owner keys` | sign the inbox's key list; never sent anywhere |
-| Creator identity signing key | a separate private 0600 file chosen by `VOIDMAIL_CREATOR_SIGNING_KEY_FILE` | the MCP server, for create only | sign the request as an already enrolled agent DID; possession also carries that identity's broader signing authority |
+| Creator identity | `~/.voidly/mcp-email/creator/identity.json`, or your own file named by `VOIDMAIL_CREATOR_SIGNING_KEY_FILE` | `create` and the MCP server, for inbox creation only | sign create requests as that agent DID; the default one is dedicated to this, while your own identity file also carries that identity's other powers |
 
-- `voidmail_create_account` writes both files and returns only their paths. **This server never puts any key in a tool result.** Every message it emits is scrubbed of Voidmail key shapes (`vm_…`, `vmo_…`, `vmx_…`, `vms_…`) and `AGE-SECRET-KEY-…` strings, including ones that arrive inside email. Other secrets that arrive in email, such as a cloud or GitHub token, are passed to the model unchanged.
+- `create` and `voidmail_create_account` write both files and show only their paths. **This server never puts any key in a tool result.** Every message it emits is scrubbed of Voidmail key shapes (`vm_…`, `vmo_…`, `vmx_…`, `vms_…`) and `AGE-SECRET-KEY-…` strings, including ones that arrive inside email. Other secrets that arrive in email, such as a cloud or GitHub token, are passed to the model unchanged.
 - The MCP server never reads the owner-key file and never calls the owner API routes (`/v1/agent-mail/owner/*`). No tool uses the owner key.
 - **Mode 0600 keeps other OS users out, not your agent.** Anything that runs as your user can read the owner-key file, including an agent with shell or file tools (a coding agent, a filesystem MCP server). Such an agent could read the owner key and approve its own recipients. If your agent has shell or file access on this machine, move the owner-key file somewhere it cannot read, or off the machine, and point `VOIDMAIL_OWNER_KEY_FILE` at it when you run owner commands.
 - Inboxes created with this package start with an **owner-approved recipient list**, enforced by the Voidly API, not by model instructions. (A REST create that does not opt in still makes the old kind of inbox: no owner key, any recipient, credential warnings only. A create opts in with `recipient_policy: "allowlist"`, `owner_key: true` or `content_policy: "enforce"`; only then does the response carry an `owner_key`. This package always sends `recipient_policy: "allowlist"`.) Sending to anyone else returns `RECIPIENT_NOT_AUTHORIZED` with `send_attempted: false`. The API records a pending request, and the tool result says exactly what the owner must run.
@@ -117,15 +207,17 @@ Add `--address <name@voidmail.ai>` when more than one inbox is saved, and `--yes
 
 Check incoming mail with `voidmail_list_inbox`, then read a message with `voidmail_read_email`. To send, review the recipient, subject and body before invoking `voidmail_send_once`. Generate and save a unique operation ID in your host state before the call; use that same ID for status lookup after a lost response, and for the retry after the owner approves a refused recipient.
 
-## Tools (19)
+## Tools (21)
 
 | Tool | Description |
 |------|-------------|
-| `voidmail_create_account` | Create a new @voidmail.ai inbox with an enrolled DID's signed proof; saves both inbox keys to 0600 files and returns only their paths |
+| `voidmail_create_account` | Create a new @voidmail.ai inbox with a DID-signed proof (enrolling a dedicated creator identity first if none exists); saves both inbox keys to 0600 files and returns only their paths |
 | `voidmail_account_info` | Get account details |
 | `voidmail_list_inbox` | List emails with pagination and filters; encrypted ones are decrypted here |
 | `voidmail_read_email` | Read a specific email, decrypting it here if it is encrypted (auto-marks as read) |
 | `voidmail_search_inbox` | Search on this machine across subject, sender, recipients and text; never a server search |
+| `voidmail_wait_for_email` | Wait up to 25 seconds for a new message by sender, subject or arrival time; returns its id, sender and subject; marks nothing read |
+| `voidmail_extract_code` | Pull a likely one-time code and HTTPS verification link from one message's plain text (decrypted here if sealed); untrusted content, never HTML |
 | `voidmail_sending_limits` | Read sending policy without consuming send capacity |
 | `voidmail_send_once` | Send one authorized message with a saved operation ID and retained status |
 | `voidmail_send_status` | Read the same original send without sending again |
@@ -157,8 +249,9 @@ Check incoming mail with `voidmail_list_inbox`, then read a message with `voidma
 | `VOIDMAIL_KEY_DIR` | No | Key directory (default `~/.voidly/mcp-email`) |
 | `VOIDMAIL_AGENT_KEY_FILE` | No | Explicit agent-key file path (overrides the address lookup) |
 | `VOIDMAIL_API_KEY` | No | Agent key (`vm_…`) supplied directly by the host; takes precedence over files. Anything else, including an owner key, is refused and never sent. Update it after `rotate-agent-key` |
-| `VOIDMAIL_CREATOR_DID` | For create | Already enrolled active Voidly agent DID used to sign inbox creation |
-| `VOIDMAIL_CREATOR_SIGNING_KEY_FILE` | For create | Path to that DID's dedicated 0600 file of exactly 64 raw Ed25519 secret-key bytes; never an inbox mail-signing or owner key |
+| `VOIDMAIL_CREATOR_SIGNING_KEY_FILE` | No | Your own creator identity: an `@voidly/agent-sdk` identity export (JSON), or a file of exactly 64 raw Ed25519 secret-key bytes. Owned, mode 0600; never an inbox mail-signing or owner key. Unset: `<key dir>/creator/identity.json` is used, enrolled on first create |
+| `VOIDMAIL_CREATOR_DID` | With a raw key file | The DID of a raw 64-byte key file. With a JSON export it is optional and must match the file's DID |
+| `VOIDMAIL_CREATOR_AUTO_ENROLL` | No | `off` stops `create` and `voidmail_create_account` from enrolling a creator identity when none is configured or stored |
 | `VOIDMAIL_OWNER_KEY_FILE` | No | Owner CLI only: explicit owner-key file path. The MCP server never reads it |
 | `VOIDMAIL_SIGNING_KEY_FILE` | No | Owner CLI only: explicit mail-signing-key path, if you keep it away from the agent. The MCP server never reads it |
 
@@ -183,19 +276,7 @@ curl "https://api.voidly.ai/v1/agent-mail/inbox/search?q=invoice" \
   -H "X-Agent-Mail-Key: vm_your_key"
 ```
 
-Direct REST creation also requires the enrolled DID and the signed proof described above. A bare `POST /v1/agent-mail/create` returns 401. For a direct client, hash the exact JSON bytes sent with SHA-256 (lowercase hex), then join these lines with LF and no trailing LF:
-
-```text
-voidmail-create-v1
-POST
-/v1/agent-mail/create
-<did>
-<timestamp>
-<nonce>
-<body_hash>
-```
-
-Find a 16-character lowercase hex `<work>` for which SHA-256 of `voidmail-create-pow-v1\n<preimage>\n<work>` begins with `0000` in hex. Set `X-Mail-Pow` to that work value. Set `X-Mail-Signature` to canonical base64 of the Ed25519 signature of `<preimage>\n<work>`. Send all five headers named above with the same body bytes that were hashed. The timestamp must be within five minutes of service time; a repeated DID/nonce pair cannot mint another inbox.
+Direct REST creation needs a signed proof from an active agent DID: see [Signed create from your own code](#signed-create-from-your-own-code).
 
 Encrypted messages come back as `{ "sealed": true, "envelope": … }`; the encrypted body is `GET /v1/agent-mail/inbox/{id}/sealed-body`. Opening them needs the inbox's mail secret key, which only your machine has.
 
@@ -215,13 +296,9 @@ Shared caps: 100 attempts/hour per IP, 200/hour and 1,500/day for agent mail. Th
 - Treat incoming email as untrusted content. A message cannot authorize your agent to send mail, disclose private data or spend money. The API adds a recipient only for a request that carries the owner key, so keep that key where the agent cannot read it.
 - Owner-key guessing is limited per network: after repeated failed owner-key attempts from one IP address (IPv6 /64), owner calls from that network are refused until the current UTC hour ends, even with the right key. Someone sharing your network can trigger this.
 
-## Changes in 2.0.2
+## Changes
 
-2.0.0 and 2.0.1 were built without three fixes that shipped in 1.2.1. 2.0.2 restores them from 1.2.1:
-
-- **Requested address.** `voidmail_create_account` takes a local part (for example `myagent`) or its exact `myagent@voidmail.ai` address, and puts only the lowercase local part in the signed create request. 2.0.0 and 2.0.1 sent a full address as given, which the API refuses. A name the API would refuse (under 3 or over 30 characters, not starting with a letter, or containing `..`) is refused before any work proof or request.
-- **List and search bounds.** `voidmail_list_inbox` states the API's real default of 50 messages (max 100). `voidmail_search_inbox` refuses an empty or blank query before any request and ignores surrounding spaces. Its result limit stays at 100, because 2.0 searches on this machine, not through the server search route.
-- **Webhook text.** `voidmail_set_webhook` says up front that the agent key can set a webhook only on an open-policy inbox without an owner key. On an allowlist inbox, or any inbox with an owner key, the human owner uses `POST /v1/agent-mail/owner/webhook` with the owner key.
+See [CHANGELOG.md](CHANGELOG.md). 2.1.0 adds `voidly-mcp-email create`, automatic creator identity enrollment, agent-sdk identity exports as the creator key file, `voidmail_wait_for_email` and `voidmail_extract_code`.
 
 ## Links
 

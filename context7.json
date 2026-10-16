@@ -1,13 +1,13 @@
 {
   "$schema": "https://context7.com/schema/context7.json",
   "projectTitle": "Voidmail MCP Email",
-  "description": "@voidly/mcp-email 2.0.2 is a local stdio MCP server with 19 tools for @voidmail.ai agent inboxes.",
+  "description": "@voidly/mcp-email 2.1.0 is a local stdio MCP server and CLI with 21 tools for @voidmail.ai agent inboxes.",
   "branch": "main",
   "folders": [],
   "excludeFolders": ["src", "test", "dist"],
   "rules": [
-    "Package 2.0.2 uses local stdio. This local package configuration does not identify or configure the separate hosted Mail MCP route.",
-    "Creating an inbox needs an enrolled did:voidly identity and its signing-key file, configured by the human in VOIDMAIL_CREATOR_DID and VOIDMAIL_CREATOR_SIGNING_KEY_FILE. Never put key bytes in tool arguments.",
+    "Package 2.1.0 uses local stdio. This local package configuration does not identify or configure the separate hosted Mail MCP route.",
+    "Creating an inbox needs a did:voidly identity: either one configured by the human in VOIDMAIL_CREATOR_DID and VOIDMAIL_CREATOR_SIGNING_KEY_FILE, or a dedicated creator identity the package enrolls through Voidly Home join on first use (VOIDMAIL_CREATOR_AUTO_ENROLL=off turns this off). Never put key bytes in tool arguments.",
     "New inboxes created by this package use an owner-approved recipient list. Keep the owner key outside the model and any agent shell or file access; only the human owner may expand recipients.",
     "Stored mail is readable by the server until the owner runs voidly-mcp-email owner keys init; results label each message storage: sealed or server-readable. This is not end-to-end encryption: incoming mail is plaintext to the receiving server before it is sealed, and outside email is not end-to-end encrypted.",
     "Read voidmail_sending_limits before planning outbound mail; follow server-enforced recipient, content, and rate limits.",

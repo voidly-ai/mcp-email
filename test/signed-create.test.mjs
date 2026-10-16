@@ -117,12 +117,20 @@ test('create limit 429 preserves Retry-After and never retries or changes identi
 
 test('missing creator identity and uncertain 503 never trigger an unsigned or replacement create', async t => {
   let calls = 0;
-  const { client: noSigner, root: emptyRoot } = await fixture(t, async () => { calls++; return Response.json({}); }, {});
+  // 2.1: with no creator configured and automatic enrollment off, nothing is sent.
+  const { client: noSigner, root: emptyRoot } = await fixture(t, async () => { calls++; return Response.json({}); }, { autoEnrollCreator: false });
   const local = await noSigner.callTool({ name: 'voidmail_create_account', arguments: {} });
   assert.equal(local.isError, true);
   assert.match(local.content[0].text, /VOIDMAIL_CREATOR_DID/);
   assert.equal(calls, 0);
   assert.deepEqual(readdirSync(emptyRoot), []);
+  // A DID without its key file is a configuration error, never an unsigned create or an enrollment.
+  const { client: didOnly, root: didRoot } = await fixture(t, async () => { calls++; return Response.json({}); }, { creatorDid: creatorOptions(t).creatorDid });
+  const half = await didOnly.callTool({ name: 'voidmail_create_account', arguments: {} });
+  assert.equal(half.isError, true);
+  assert.match(half.content[0].text, /VOIDMAIL_CREATOR_SIGNING_KEY_FILE/);
+  assert.equal(calls, 0);
+  assert.deepEqual(readdirSync(didRoot), []);
 
   const creator = creatorOptions(t);
   const { client } = await fixture(t, async (_url, init) => {
