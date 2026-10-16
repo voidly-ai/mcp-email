@@ -55,7 +55,8 @@ export function fakeVoidly({ mint } = {}) {
   const card = (op) => ({ operation_id: op.operation_id, state: 'working', private: true,
     root: { did: op.root.did, identity: 'ready', credential: 'local_retention_required' },
     board: { did: op.board.did, identity: 'ready', credential: 'local_retention_required' },
-    mail: { state: 'held', reason: 'owner_action_required' }, next_actions: ['back_up_local_keys', 'complete_mail_owner_setup'] });
+    mail: { state: 'available', next: 'npx -y @voidly/mcp-email@2.1.0 create', docs: 'https://voidly.ai/agent-email' },
+    next_actions: ['back_up_local_keys', 'create_mail_inbox_if_wanted', 'opt_in_to_public_handle_if_wanted'] });
 
   function join(body) {
     if (body.action === 'challenge') {

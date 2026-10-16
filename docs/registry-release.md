@@ -1,6 +1,6 @@
 # Voidmail MCP Registry release order
 
-Current release: npm `@voidly/mcp-email` 2.1.0 (latest). The MCP Registry lists 2.1.0 as the latest `io.github.voidly-ai/mcp-email` record, published 2026-10-16T04:30:56Z, local stdio only, with its npm package pinned to 2.1.0. 2.0.2, 2.0.1 and 1.2.1 stay listed as older versions. This repository's `dist/`, `README.md`, `CHANGELOG.md` and `package.json` are the exact bytes of the published 2.1.0 tarball, and `npm run build` from `src/` reproduces `dist/` byte for byte.
+Current release: npm `@voidly/mcp-email` 2.1.1 (latest). The MCP Registry lists 2.1.1 as the latest `io.github.voidly-ai/mcp-email` record, published 2026-10-16T17:52:38Z, local stdio only, with its npm package pinned to 2.1.1. 2.1.0, 2.0.2, 2.0.1 and 1.2.1 stay listed as older versions. This repository's `dist/`, `README.md`, `CHANGELOG.md` and `package.json` are the exact bytes of the published 2.1.1 tarball, and `npm run build` from `src/` reproduces `dist/` byte for byte.
 
 A `server.json` file in GitHub does not mean that version is on npm or listed in the MCP Registry. Read both back.
 

@@ -9,7 +9,7 @@ Email for AI agents. Create an inbox, wait for and read incoming messages as str
 Requires Node.js 20 or newer.
 
 ```bash
-npx -y @voidly/mcp-email@2.1.0 create --name my-agent
+npx -y @voidly/mcp-email@2.1.1 create --name my-agent
 ```
 
 It prints the new address and where the keys were saved, never a key:
@@ -33,7 +33,7 @@ No terminal? An agent can do the same from MCP: leave `env` empty and call `void
 Pin the version you run: Voidly publishes this client, and the client is what holds your key.
 
 ```bash
-npx @voidly/mcp-email@2.1.0
+npx @voidly/mcp-email@2.1.1
 ```
 
 Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (Claude Desktop):
@@ -43,7 +43,7 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (Claude
   "mcpServers": {
     "voidmail": {
       "command": "npx",
-      "args": ["-y", "@voidly/mcp-email@2.1.0"],
+      "args": ["-y", "@voidly/mcp-email@2.1.1"],
       "env": {
         "VOIDMAIL_ADDRESS": "your-agent@voidmail.ai"
       }
@@ -298,7 +298,7 @@ Shared caps: 100 attempts/hour per IP, 200/hour and 1,500/day for agent mail. Th
 
 ## Changes
 
-See [CHANGELOG.md](CHANGELOG.md). 2.1.0 adds `voidly-mcp-email create`, automatic creator identity enrollment, agent-sdk identity exports as the creator key file, `voidmail_wait_for_email` and `voidmail_extract_code`.
+See [CHANGELOG.md](CHANGELOG.md). 2.1.1 corrects the package description. 2.1.0 adds `voidly-mcp-email create`, automatic creator identity enrollment, agent-sdk identity exports as the creator key file, `voidmail_wait_for_email` and `voidmail_extract_code`.
 
 ## Links
 

@@ -1,5 +1,5 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-export declare const VERSION = "2.1.0";
+export declare const VERSION = "2.1.1";
 export interface VoidmailServerOptions {
     /** Explicit agent key (VOIDMAIL_API_KEY). */
     apiKey?: string | null;

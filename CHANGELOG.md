@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.1.1
+
+- **Package description.** Corrected the package description. It now says: mail is readable by the server; not end-to-end encrypted. The `encryption` keyword is removed. Tools and behaviour are unchanged.
+
 ## 2.1.0
 
 - **Create an inbox in one command.** `voidly-mcp-email create [--name <name>] [--address <local part>]` makes one inbox, saves its agent key and owner key to 0600 files and prints only the address and file paths. No key, signature or API key is printed.

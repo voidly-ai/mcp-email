@@ -1,8 +1,8 @@
 {
   "name": "@voidly/mcp-email",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "mcpName": "io.github.voidly-ai/mcp-email",
-  "description": "MCP server and CLI for agent email: create an @voidmail.ai inbox in one command, wait for verification mail, send to owner-approved recipients, optional encrypted storage. Keys are made and mail is decrypted on your machine; incoming mail is plaintext to the server while it is received, and outside email is not end-to-end encrypted.",
+  "description": "Email inboxes for AI agents: create one with a single command, receive and read mail over MCP, send to owner-approved recipients. Mail is readable by the server; not end-to-end encrypted.",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
@@ -24,8 +24,7 @@
     "claude",
     "llm",
     "tool",
-    "messaging",
-    "encryption"
+    "messaging"
   ],
   "author": "Ai Analytics LLC",
   "license": "MIT",
