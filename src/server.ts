@@ -41,7 +41,7 @@ import { AGENT_KEY_RE, keyRoot as defaultKeyRoot, mailboxDir, readAgentKeyFile, 
 import { CreatedButUnsavedError, createInbox, requestedLocalPart } from './create-inbox.js';
 
 const API_BASE = 'https://api.voidly.ai';
-export const VERSION = '2.1.0';
+export const VERSION = '2.1.1';
 /** The MCP server's own guard: it refuses to build any URL under the owner namespace. */
 const OWNER_PREFIX = '/v1/agent-mail/owner';
 
